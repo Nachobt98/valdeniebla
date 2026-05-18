@@ -1,0 +1,121 @@
+[gd_scene format=3 uid="uid://cx2gg7f7u2nma"]
+
+[ext_resource type="Script" uid="uid://c88b0e7vayckq" path="res://main.gd" id="1_ig7tw"]
+
+[node name="Main" type="Control" unique_id=20052421]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ig7tw")
+
+[node name="RootLayout" type="VBoxContainer" parent="." unique_id=1643269409]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopBar" type="PanelContainer" parent="RootLayout" unique_id=710608766]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="RootLayout/TopBar" unique_id=1961473249]
+layout_mode = 2
+text = "Valdeniebla — Primavera, Año 1 — Día 1"
+
+[node name="MainContent" type="HBoxContainer" parent="RootLayout" unique_id=1511884775]
+layout_mode = 2
+size_flags_vertical = 3
+alignment = 1
+
+[node name="LeftPanel" type="PanelContainer" parent="RootLayout/MainContent" unique_id=2027031128]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="NPCMargin" type="MarginContainer" parent="RootLayout/MainContent/LeftPanel" unique_id=753462593]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="NPCInfo" type="VBoxContainer" parent="RootLayout/MainContent/LeftPanel/NPCMargin" unique_id=229083717]
+layout_mode = 2
+
+[node name="NPCNameLabel" type="Label" parent="RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo" unique_id=1041033683]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_vertical = 1
+text = "Aldric
+19 años — Aprendiz de herrero
+
+Rasgos: Trabajador, orgulloso, impaciente
+
+Forja: 6 | Fuerza: 5 | Carisma: 2
+
+Relaciones:
+Gareth +45
+Mara +10
+Elowen -5"
+autowrap_mode = 2
+
+[node name="VillagePanel" type="PanelContainer" parent="RootLayout/MainContent" unique_id=263680469]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NPCMargin" type="MarginContainer" parent="RootLayout/MainContent/VillagePanel" unique_id=5313855]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Label" type="Label" parent="RootLayout/MainContent/VillagePanel/NPCMargin" unique_id=214393829]
+layout_mode = 2
+text = "[ Vista de la aldea aquí ]
+
+Herrería     Taberna
+
+       Pozo
+
+Cabañas      Granjas"
+horizontal_alignment = 1
+
+[node name="RightPanel" type="PanelContainer" parent="RootLayout/MainContent" unique_id=1118883479]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+
+[node name="NPCMargin" type="MarginContainer" parent="RootLayout/MainContent/RightPanel" unique_id=1274842473]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="DiaryPanel" type="VBoxContainer" parent="RootLayout/MainContent/RightPanel/NPCMargin" unique_id=1672511313]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+
+[node name="DiaryTitleLabel" type="Label" parent="RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel" unique_id=987979208]
+layout_mode = 2
+text = "Diario de Aldric"
+
+[node name="DiaryEntriesLabel" type="RichTextLabel" parent="RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel" unique_id=1766414139]
+custom_minimum_size = Vector2(300, 250)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "Día 1 — Mañana
+Aldric trabajó en la herrería.
+
+Día 1 — Tarde
+Mara saludó a Aldric cerca del pozo."
+autowrap_mode = 2
+
+[node name="AdvanceDayButton" type="Button" parent="RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel" unique_id=1626155714]
+layout_mode = 2
+text = "Avanzar día"
