@@ -13,10 +13,18 @@ var village_state := VillageState.new()
 var event_system := EventSystem.new()
 var diary_system := DiarySystem.new()
 
-@onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TitleLabel
+@onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TitleLabel
+@onready var top_stats_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TopStatsLabel
 @onready var npc_list: ItemList = $RootMargin/RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo/NPCList
 @onready var npc_info_label: RichTextLabel = $RootMargin/RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo/NPCInfoLabel
-@onready var village_overview_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageOverviewLabel
+@onready var village_status_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageStatusLabel
+@onready var forge_card_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ForgeCard/ForgeCardMargin/ForgeCardLabel
+@onready var tavern_card_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/TavernCard/TavernCardMargin/TavernCardLabel
+@onready var well_card_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/WellCard/WellCardMargin/WellCardLabel
+@onready var farms_card_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/FarmsCard/FarmsCardMargin/FarmsCardLabel
+@onready var chapel_card_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ChapelCard/ChapelCardMargin/ChapelCardLabel
+@onready var pastures_card_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/PasturesCard/PasturesCardMargin/PasturesCardLabel
+@onready var village_rumor_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageRumorLabel
 @onready var diary_title_label: Label = $RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/DiaryTitleLabel
 @onready var diary_entries_label: RichTextLabel = $RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/DiaryEntriesLabel
 @onready var advance_day_button: Button = $RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/AdvanceDayButton
@@ -56,15 +64,23 @@ func update_all_ui() -> void:
 	update_diary()
 
 func update_title() -> void:
+	var average_mood := village_state.get_average_state("ánimo")
+	var average_stress := village_state.get_average_state("estrés")
 	title_label.text = "Valdeniebla — %s, Año %d — Día %d" % [
 		village_state.season,
 		village_state.year,
 		village_state.day
 	]
+	top_stats_label.text = "Ánimo %d/100   ·   Estrés %d/100   ·   Habitantes %d   ·   Crónica %d eventos" % [
+		average_mood,
+		average_stress,
+		village_state.npc_order.size(),
+		diary_system.diary_history.size()
+	]
 
 func update_npc_panel() -> void:
 	var npc: Dictionary = village_state.npcs[selected_npc_id]
-	var text := "[b]%s[/b]\n%d años — %s\n[i]%s[/i]\n\n" % [
+	var text := "[font_size=23][b]%s[/b][/font_size]\n%d años — %s\n[i]%s[/i]\n\n" % [
 		npc["name"],
 		int(npc["age"]),
 		npc["profession"],
@@ -79,14 +95,25 @@ func update_npc_panel() -> void:
 func update_village_overview() -> void:
 	var average_mood := village_state.get_average_state("ánimo")
 	var average_stress := village_state.get_average_state("estrés")
-	village_overview_label.text = "[center][font_size=26][b]Valdeniebla[/b][/font_size][/center]\n\n" + \
-		"[b]Pulso de la aldea[/b]\nÁnimo medio: %d/100\nEstrés medio: %d/100\nHabitantes registrados: %d\n\n" % [average_mood, average_stress, village_state.npc_order.size()] + \
-		"[b]Lugares[/b]\nHerrería · Taberna · Pozo · Granjas · Prados · Capilla · Casa comunal\n\n" + \
-		"[b]Rumor del día[/b]\nLa niebla baja aún se agarra a los tejados. En la plaza se oyen pasos, cubos de agua y conversaciones que nadie termina de decir en voz alta."
+	village_status_label.text = "[b]Pulso de la aldea[/b]\nÁnimo medio: %d/100   ·   Estrés medio: %d/100   ·   Habitantes registrados: %d" % [
+		average_mood,
+		average_stress,
+		village_state.npc_order.size()
+	]
+	forge_card_label.text = make_building_card("Herrería", "Aldric · Gareth", "Forja, herramientas y orgullo herido", "El yunque sigue sonando aun cuando cae la tarde.")
+	tavern_card_label.text = make_building_card("Taberna", "Mara", "Rumores, moral y visitantes", "Aquí las noticias llegan antes que los viajeros.")
+	well_card_label.text = make_building_card("Pozo", "Encuentros", "Charla, agua y miradas rápidas", "La plaza pequeña respira alrededor del pozo.")
+	farms_card_label.text = make_building_card("Granjas", "Bran", "Comida, clima y fatiga", "El barro decide tanto como los hombres.")
+	chapel_card_label.text = make_building_card("Capilla", "Tomas", "Memoria, fe y mediación", "Las historias viejas duermen entre velas.")
+	pastures_card_label.text = make_building_card("Prados", "Lysa", "Ganado, lindes y vigilancia", "Más allá empieza la frontera de lo seguro.")
+	village_rumor_label.text = "[b]Rumor del día[/b]\nLa niebla baja aún se agarra a los tejados. En la plaza se oyen pasos, cubos de agua y conversaciones que nadie termina de decir en voz alta.\n\n[b]Lectura rápida[/b]\nLa aldea no es solo una lista de eventos: cada lugar debe acabar teniendo tareas, habitantes, riesgos y pequeñas historias propias."
 
 func update_diary() -> void:
 	diary_title_label.text = "Crónica de la aldea"
 	diary_entries_label.text = "\n\n".join(diary_system.get_recent_entries())
+
+func make_building_card(building_name: String, people: String, role: String, flavor: String) -> String:
+	return "[center][font_size=21][b]%s[/b][/font_size][/center]\n[b]Habitantes[/b]\n%s\n\n[b]Función[/b]\n%s\n\n[i]%s[/i]" % [building_name, people, role, flavor]
 
 func format_dictionary(values: Dictionary) -> String:
 	var chunks: Array[String] = []
