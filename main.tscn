@@ -40,22 +40,32 @@ layout_mode = 2
 theme_override_constants/separation = 10
 
 [node name="TopBar" type="PanelContainer" parent="RootMargin/RootLayout" unique_id=710608766]
-custom_minimum_size = Vector2(0, 72)
+custom_minimum_size = Vector2(0, 92)
 layout_mode = 2
 
 [node name="TopBarMargin" type="MarginContainer" parent="RootMargin/RootLayout/TopBar"]
 layout_mode = 2
-theme_override_constants/margin_left = 20
+theme_override_constants/margin_left = 22
 theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 20
+theme_override_constants/margin_right = 22
 theme_override_constants/margin_bottom = 10
 
-[node name="TitleLabel" type="Label" parent="RootMargin/RootLayout/TopBar/TopBarMargin" unique_id=1961473249]
+[node name="TopBarContent" type="VBoxContainer" parent="RootMargin/RootLayout/TopBar/TopBarMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent" unique_id=1961473249]
 layout_mode = 2
 text = "Valdeniebla — Primavera, Año 1 — Día 1"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 25
+
+[node name="TopStatsLabel" type="Label" parent="RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent"]
+layout_mode = 2
+text = "Ánimo 51/100   ·   Estrés 27/100   ·   Habitantes 8"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 17
 
 [node name="MainContent" type="HBoxContainer" parent="RootMargin/RootLayout" unique_id=1511884775]
 layout_mode = 2
@@ -101,18 +111,158 @@ size_flags_horizontal = 3
 
 [node name="VillageMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel" unique_id=5313855]
 layout_mode = 2
-theme_override_constants/margin_left = 24
+theme_override_constants/margin_left = 22
 theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 24
+theme_override_constants/margin_right = 22
 theme_override_constants/margin_bottom = 18
 
-[node name="VillageOverviewLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin" unique_id=214393829]
+[node name="VillageContent" type="VBoxContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="VillageTitleLabel" type="Label" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent"]
+layout_mode = 2
+text = "Tablero de la aldea"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 27
+
+[node name="VillageStatusLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent"]
+custom_minimum_size = Vector2(0, 78)
+layout_mode = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="VillageBoard" type="GridContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent"]
 layout_mode = 2
 size_flags_horizontal = 3
+columns = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+
+[node name="ForgeCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
+custom_minimum_size = Vector2(190, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ForgeCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ForgeCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="ForgeCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ForgeCard/ForgeCardMargin"]
+layout_mode = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="TavernCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
+custom_minimum_size = Vector2(190, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TavernCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/TavernCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="TavernCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/TavernCard/TavernCardMargin"]
+layout_mode = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="WellCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
+custom_minimum_size = Vector2(190, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WellCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/WellCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="WellCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/WellCard/WellCardMargin"]
+layout_mode = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="FarmsCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
+custom_minimum_size = Vector2(190, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FarmsCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/FarmsCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="FarmsCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/FarmsCard/FarmsCardMargin"]
+layout_mode = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="ChapelCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
+custom_minimum_size = Vector2(190, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ChapelCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ChapelCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="ChapelCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ChapelCard/ChapelCardMargin"]
+layout_mode = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="PasturesCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
+custom_minimum_size = Vector2(190, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PasturesCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/PasturesCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="PasturesCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/PasturesCard/PasturesCardMargin"]
+layout_mode = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="VillageRumorLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent"]
+custom_minimum_size = Vector2(0, 130)
+layout_mode = 2
 size_flags_vertical = 3
 bbcode_enabled = true
 autowrap_mode = 2
-text = "[center][b]Valdeniebla[/b][/center]"
+scroll_active = false
+text = ""
 
 [node name="RightPanel" type="PanelContainer" parent="RootMargin/RootLayout/MainContent" unique_id=1118883479]
 custom_minimum_size = Vector2(450, 0)
