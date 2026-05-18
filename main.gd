@@ -9,6 +9,7 @@ const DiarySystem = preload("res://scripts/diary_system.gd")
 const DAY_TIMES := ["Mañana", "Tarde"]
 const EVENT_FEED_LIFETIME := 5.0
 const EVENT_FEED_FADE_TIME := 1.25
+const MAX_VISIBLE_EVENT_FEED_MESSAGES := 4
 
 var selected_npc_id: String = "aldric"
 var village_state := VillageState.new()
@@ -88,19 +89,20 @@ func apply_translucent_context_style() -> void:
 func create_event_feed_overlay() -> void:
 	var feed_panel := PanelContainer.new()
 	feed_panel.name = "EventFeedPanel"
-	feed_panel.custom_minimum_size = Vector2(340, 132)
+	feed_panel.clip_contents = true
+	feed_panel.custom_minimum_size = Vector2(420, 210)
 	feed_panel.anchor_left = 1.0
 	feed_panel.anchor_top = 1.0
 	feed_panel.anchor_right = 1.0
 	feed_panel.anchor_bottom = 1.0
-	feed_panel.offset_left = -370.0
-	feed_panel.offset_top = -178.0
-	feed_panel.offset_right = -28.0
-	feed_panel.offset_bottom = -44.0
+	feed_panel.offset_left = -455.0
+	feed_panel.offset_top = -255.0
+	feed_panel.offset_right = -32.0
+	feed_panel.offset_bottom = -45.0
 	feed_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.02, 0.32)
+	style.bg_color = Color(0.04, 0.03, 0.02, 0.30)
 	style.border_width_left = 0
 	style.border_width_top = 0
 	style.border_width_right = 0
@@ -112,13 +114,18 @@ func create_event_feed_overlay() -> void:
 	feed_panel.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 10)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_bottom", 8)
+	margin.clip_contents = true
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
 	feed_panel.add_child(margin)
 
 	event_feed_container = VBoxContainer.new()
+	event_feed_container.clip_contents = true
+	event_feed_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	event_feed_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	event_feed_container.alignment = BoxContainer.ALIGNMENT_END
 	event_feed_container.add_theme_constant_override("separation", 5)
 	margin.add_child(event_feed_container)
 
@@ -166,6 +173,7 @@ func add_event_feed_entry(time_name: String, event_data: Dictionary) -> void:
 	entry_label.fit_content = true
 	entry_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry_label.modulate.a = 0.0
+	entry_label.set_meta("event_feed_message", true)
 	entry_label.text = "[b]Día %d · %s[/b] — %s\n[color=#d9c9a8]%s[/color]" % [
 		village_state.day,
 		time_name,
@@ -173,9 +181,20 @@ func add_event_feed_entry(time_name: String, event_data: Dictionary) -> void:
 		event_data.get("title", "Suceso")
 	]
 	event_feed_container.add_child(entry_label)
+	trim_event_feed_messages()
 	var fade_in := create_tween()
 	fade_in.tween_property(entry_label, "modulate:a", 1.0, 0.25)
 	fade_event_feed_entry(entry_label)
+
+func trim_event_feed_messages() -> void:
+	var message_labels: Array[Node] = []
+	for child in event_feed_container.get_children():
+		if child.has_meta("event_feed_message"):
+			message_labels.append(child)
+	while message_labels.size() > MAX_VISIBLE_EVENT_FEED_MESSAGES:
+		var oldest := message_labels.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
 
 func fade_event_feed_entry(entry_label: RichTextLabel) -> void:
 	await get_tree().create_timer(EVENT_FEED_LIFETIME).timeout
