@@ -7,14 +7,15 @@ const EventSystem = preload("res://scripts/event_system.gd")
 const DiarySystem = preload("res://scripts/diary_system.gd")
 
 const DAY_TIMES := ["Mañana", "Tarde"]
-const MAX_EVENT_FEED_ENTRIES := 5
+const EVENT_FEED_LIFETIME := 5.0
+const EVENT_FEED_FADE_TIME := 1.25
 
 var selected_npc_id: String = "aldric"
 var village_state := VillageState.new()
 var event_system := EventSystem.new()
 var diary_system := DiarySystem.new()
-var event_feed_entries: Array[String] = []
-var event_feed_label: RichTextLabel
+var event_feed_container: VBoxContainer
+var event_feed_empty_label: RichTextLabel
 
 @onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TitleLabel
 @onready var top_stats_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TopStatsLabel
@@ -47,10 +48,10 @@ func _ready() -> void:
 	event_system.setup(EventDatabase.get_events())
 	diary_system.setup_initial_entry()
 	populate_npc_list()
+	apply_translucent_context_style()
 	create_event_feed_overlay()
 	connect_signals()
 	update_all_ui()
-	update_event_feed()
 
 func connect_signals() -> void:
 	advance_day_button.pressed.connect(_on_advance_day_pressed)
@@ -68,27 +69,42 @@ func connect_signals() -> void:
 	chapel_button.pressed.connect(func(): show_building_panel("Capilla", "Tomas", "Crónica, memoria, mediación y primeras pistas de la trama principal.", "Las velas recuerdan más de lo que dicen."))
 	pastures_button.pressed.connect(func(): show_building_panel("Prados", "Lysa", "Ganado, lindes, vigilancia rural y frontera exterior.", "Más allá de los prados empieza lo incierto."))
 
-func create_event_feed_overlay() -> void:
-	var feed_panel := PanelContainer.new()
-	feed_panel.name = "EventFeedPanel"
-	feed_panel.custom_minimum_size = Vector2(390, 175)
-	feed_panel.anchor_left = 1.0
-	feed_panel.anchor_top = 1.0
-	feed_panel.anchor_right = 1.0
-	feed_panel.anchor_bottom = 1.0
-	feed_panel.offset_left = -420.0
-	feed_panel.offset_top = -220.0
-	feed_panel.offset_right = -24.0
-	feed_panel.offset_bottom = -40.0
-	feed_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
+func apply_translucent_context_style() -> void:
+	context_panel.custom_minimum_size = Vector2(350, 0)
+	context_panel.offset_right = 366.0
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.05, 0.035, 0.72)
-	style.border_color = Color(0.64, 0.45, 0.18, 0.88)
+	style.bg_color = Color(0.07, 0.05, 0.035, 0.78)
+	style.border_color = Color(0.64, 0.45, 0.18, 0.38)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	context_panel.add_theme_stylebox_override("panel", style)
+
+func create_event_feed_overlay() -> void:
+	var feed_panel := PanelContainer.new()
+	feed_panel.name = "EventFeedPanel"
+	feed_panel.custom_minimum_size = Vector2(340, 132)
+	feed_panel.anchor_left = 1.0
+	feed_panel.anchor_top = 1.0
+	feed_panel.anchor_right = 1.0
+	feed_panel.anchor_bottom = 1.0
+	feed_panel.offset_left = -370.0
+	feed_panel.offset_top = -178.0
+	feed_panel.offset_right = -28.0
+	feed_panel.offset_bottom = -44.0
+	feed_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.03, 0.02, 0.32)
+	style.border_width_left = 0
+	style.border_width_top = 0
+	style.border_width_right = 0
+	style.border_width_bottom = 0
 	style.corner_radius_top_left = 8
 	style.corner_radius_top_right = 8
 	style.corner_radius_bottom_left = 8
@@ -96,18 +112,24 @@ func create_event_feed_overlay() -> void:
 	feed_panel.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 8)
 	feed_panel.add_child(margin)
 
-	event_feed_label = RichTextLabel.new()
-	event_feed_label.bbcode_enabled = true
-	event_feed_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	event_feed_label.scroll_active = false
-	event_feed_label.fit_content = true
-	margin.add_child(event_feed_label)
+	event_feed_container = VBoxContainer.new()
+	event_feed_container.add_theme_constant_override("separation", 5)
+	margin.add_child(event_feed_container)
+
+	event_feed_empty_label = RichTextLabel.new()
+	event_feed_empty_label.bbcode_enabled = true
+	event_feed_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	event_feed_empty_label.scroll_active = false
+	event_feed_empty_label.fit_content = true
+	event_feed_empty_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	event_feed_empty_label.text = "[b]Eventos recientes[/b]\n[color=#b8a890]Avanza el día para ver qué ocurre.[/color]"
+	event_feed_container.add_child(event_feed_empty_label)
 	map_content.add_child(feed_panel)
 
 func populate_npc_list() -> void:
@@ -133,26 +155,37 @@ func _on_advance_day_pressed() -> void:
 		diary_system.add_entry(time_name, event_data, village_state)
 		add_event_feed_entry(time_name, event_data)
 	update_all_ui()
-	update_event_feed()
 
 func add_event_feed_entry(time_name: String, event_data: Dictionary) -> void:
-	var entry := "[b]Día %d · %s[/b] — %s\n%s" % [
+	if event_feed_empty_label != null:
+		event_feed_empty_label.visible = false
+	var entry_label := RichTextLabel.new()
+	entry_label.bbcode_enabled = true
+	entry_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	entry_label.scroll_active = false
+	entry_label.fit_content = true
+	entry_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry_label.modulate.a = 0.0
+	entry_label.text = "[b]Día %d · %s[/b] — %s\n[color=#d9c9a8]%s[/color]" % [
 		village_state.day,
 		time_name,
 		event_data.get("location", "Aldea"),
 		event_data.get("title", "Suceso")
 	]
-	event_feed_entries.append(entry)
-	while event_feed_entries.size() > MAX_EVENT_FEED_ENTRIES:
-		event_feed_entries.pop_front()
+	event_feed_container.add_child(entry_label)
+	var fade_in := create_tween()
+	fade_in.tween_property(entry_label, "modulate:a", 1.0, 0.25)
+	fade_event_feed_entry(entry_label)
 
-func update_event_feed() -> void:
-	if event_feed_label == null:
+func fade_event_feed_entry(entry_label: RichTextLabel) -> void:
+	await get_tree().create_timer(EVENT_FEED_LIFETIME).timeout
+	if not is_instance_valid(entry_label):
 		return
-	if event_feed_entries.is_empty():
-		event_feed_label.text = "[b]Eventos recientes[/b]\n[color=#b8a890]Avanza el día para ver qué ocurre en la aldea.[/color]"
-		return
-	event_feed_label.text = "[b]Eventos recientes[/b]\n" + "\n\n".join(event_feed_entries)
+	var fade_out := create_tween()
+	fade_out.tween_property(entry_label, "modulate:a", 0.0, EVENT_FEED_FADE_TIME)
+	await fade_out.finished
+	if is_instance_valid(entry_label):
+		entry_label.queue_free()
 
 func update_all_ui() -> void:
 	update_title()
@@ -199,7 +232,7 @@ func show_context(title: String, body: String, show_npcs: bool = false) -> void:
 func show_people_panel() -> void:
 	show_context(
 		"Habitantes",
-		"[b]Protagonistas[/b]\nSelecciona un nombre para ver su ficha, relaciones y futuras tramas personales.",
+		"[b]Protagonistas[/b]\nSelecciona un nombre para ver ficha, relaciones y futuras tramas.",
 		true
 	)
 
@@ -216,7 +249,7 @@ func show_management_panel() -> void:
 func show_quests_panel() -> void:
 	show_context(
 		"Quests",
-		"[b]Tramas futuras[/b]\n• Quest personal de Aldric y Gareth.\n• Primer misterio de la niebla.\n• Quests cruzadas entre protagonistas.\n• Eventos donde secundarios puedan ganar importancia.\n\nTodavía es placeholder: estructura primero, brillo después.",
+		"[b]Tramas futuras[/b]\n• Quest personal de Aldric y Gareth.\n• Primer misterio de la niebla.\n• Quests cruzadas entre protagonistas.\n• Eventos donde secundarios puedan ganar importancia.",
 		false
 	)
 
