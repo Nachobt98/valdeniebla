@@ -7,14 +7,18 @@ const EventSystem = preload("res://scripts/event_system.gd")
 const DiarySystem = preload("res://scripts/diary_system.gd")
 
 const DAY_TIMES := ["Mañana", "Tarde"]
+const MAX_EVENT_FEED_ENTRIES := 5
 
 var selected_npc_id: String = "aldric"
 var village_state := VillageState.new()
 var event_system := EventSystem.new()
 var diary_system := DiarySystem.new()
+var event_feed_entries: Array[String] = []
+var event_feed_label: RichTextLabel
 
 @onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TitleLabel
 @onready var top_stats_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TopStatsLabel
+@onready var map_content: Control = $RootMargin/RootLayout/GameArea/MapPanel/MapContent
 @onready var map_status_label: RichTextLabel = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/MapStatusLabel
 
 @onready var context_panel: PanelContainer = $RootMargin/RootLayout/GameArea/ContextPanel
@@ -43,9 +47,10 @@ func _ready() -> void:
 	event_system.setup(EventDatabase.get_events())
 	diary_system.setup_initial_entry()
 	populate_npc_list()
+	create_event_feed_overlay()
 	connect_signals()
 	update_all_ui()
-	show_people_panel()
+	update_event_feed()
 
 func connect_signals() -> void:
 	advance_day_button.pressed.connect(_on_advance_day_pressed)
@@ -63,11 +68,54 @@ func connect_signals() -> void:
 	chapel_button.pressed.connect(func(): show_building_panel("Capilla", "Tomas", "Crónica, memoria, mediación y primeras pistas de la trama principal.", "Las velas recuerdan más de lo que dicen."))
 	pastures_button.pressed.connect(func(): show_building_panel("Prados", "Lysa", "Ganado, lindes, vigilancia rural y frontera exterior.", "Más allá de los prados empieza lo incierto."))
 
+func create_event_feed_overlay() -> void:
+	var feed_panel := PanelContainer.new()
+	feed_panel.name = "EventFeedPanel"
+	feed_panel.custom_minimum_size = Vector2(390, 175)
+	feed_panel.anchor_left = 1.0
+	feed_panel.anchor_top = 1.0
+	feed_panel.anchor_right = 1.0
+	feed_panel.anchor_bottom = 1.0
+	feed_panel.offset_left = -420.0
+	feed_panel.offset_top = -220.0
+	feed_panel.offset_right = -24.0
+	feed_panel.offset_bottom = -40.0
+	feed_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.07, 0.05, 0.035, 0.72)
+	style.border_color = Color(0.64, 0.45, 0.18, 0.88)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	feed_panel.add_theme_stylebox_override("panel", style)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	feed_panel.add_child(margin)
+
+	event_feed_label = RichTextLabel.new()
+	event_feed_label.bbcode_enabled = true
+	event_feed_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	event_feed_label.scroll_active = false
+	event_feed_label.fit_content = true
+	margin.add_child(event_feed_label)
+	map_content.add_child(feed_panel)
+
 func populate_npc_list() -> void:
 	npc_list.clear()
 	for npc_id in village_state.npc_order:
 		npc_list.add_item(village_state.npcs[npc_id]["name"])
 	npc_list.select(0)
+	npc_list.ensure_current_is_visible()
 
 func _on_npc_selected(index: int) -> void:
 	if index >= 0 and index < village_state.npc_order.size():
@@ -83,7 +131,28 @@ func _on_advance_day_pressed() -> void:
 		var event_data = event_system.pick_event(village_state)
 		event_system.apply_event(event_data, village_state)
 		diary_system.add_entry(time_name, event_data, village_state)
+		add_event_feed_entry(time_name, event_data)
 	update_all_ui()
+	update_event_feed()
+
+func add_event_feed_entry(time_name: String, event_data: Dictionary) -> void:
+	var entry := "[b]Día %d · %s[/b] — %s\n%s" % [
+		village_state.day,
+		time_name,
+		event_data.get("location", "Aldea"),
+		event_data.get("title", "Suceso")
+	]
+	event_feed_entries.append(entry)
+	while event_feed_entries.size() > MAX_EVENT_FEED_ENTRIES:
+		event_feed_entries.pop_front()
+
+func update_event_feed() -> void:
+	if event_feed_label == null:
+		return
+	if event_feed_entries.is_empty():
+		event_feed_label.text = "[b]Eventos recientes[/b]\n[color=#b8a890]Avanza el día para ver qué ocurre en la aldea.[/color]"
+		return
+	event_feed_label.text = "[b]Eventos recientes[/b]\n" + "\n\n".join(event_feed_entries)
 
 func update_all_ui() -> void:
 	update_title()
@@ -109,7 +178,7 @@ func update_title() -> void:
 func update_map_status() -> void:
 	var average_mood := village_state.get_average_state("ánimo")
 	var average_stress := village_state.get_average_state("estrés")
-	map_status_label.text = "[center][b]Pulso de la aldea[/b]\nÁnimo medio: %d/100 · Estrés medio: %d/100 · Habitantes: %d\nLa niebla baja aún se agarra a los tejados. Cada edificio es una futura puerta a tareas, recursos, quests y conflictos.[/center]" % [
+	map_status_label.text = "[center][b]Pulso de la aldea[/b]\nÁnimo medio: %d/100 · Estrés medio: %d/100 · Habitantes: %d\nCada edificio será una puerta a tareas, recursos, quests y conflictos.[/center]" % [
 		average_mood,
 		average_stress,
 		village_state.npc_order.size()
@@ -123,12 +192,14 @@ func show_context(title: String, body: String, show_npcs: bool = false) -> void:
 	npc_list.visible = show_npcs
 	npc_info_label.visible = show_npcs
 	if show_npcs:
+		npc_list.select(0)
+		npc_list.ensure_current_is_visible()
 		update_npc_panel()
 
 func show_people_panel() -> void:
 	show_context(
 		"Habitantes",
-		"[b]Protagonistas[/b]\nLos habitantes principales tienen ficha, relaciones y futuras tramas personales.\n\nSelecciona un nombre para ver su estado.",
+		"[b]Protagonistas[/b]\nSelecciona un nombre para ver su ficha, relaciones y futuras tramas personales.",
 		true
 	)
 
