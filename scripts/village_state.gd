@@ -6,14 +6,19 @@ var year: int = 1
 var npc_order: Array[String] = []
 var npcs: Dictionary = {}
 var event_history: Array[Dictionary] = []
+var resources: Dictionary = {}
+var last_daily_resource_changes: Array[Dictionary] = []
 
-func setup(initial_npc_order: Array[String], initial_npcs: Dictionary) -> void:
+func setup(initial_npc_order: Array[String], initial_npcs: Dictionary, initial_resources: Dictionary = {}) -> void:
 	npc_order = initial_npc_order.duplicate(true)
 	npcs = initial_npcs.duplicate(true)
+	resources = initial_resources.duplicate(true)
 	event_history.clear()
+	last_daily_resource_changes.clear()
 
 func advance_day() -> void:
 	day += 1
+	last_daily_resource_changes.clear()
 
 func change_stat(npc_id: String, stat_name: String, delta: int) -> void:
 	var stats: Dictionary = npcs[npc_id]["stats"]
@@ -26,6 +31,47 @@ func change_state(npc_id: String, state_name: String, delta: int) -> void:
 func change_relation(from_id: String, to_id: String, delta: int) -> void:
 	var relationships: Dictionary = npcs[from_id]["relationships"]
 	relationships[to_id] = int(clamp(int(relationships.get(to_id, 0)) + delta, -100, 100))
+
+func change_resource(resource_name: String, delta: int, source: String = "") -> void:
+	var current_value: int = int(resources.get(resource_name, 0))
+	resources[resource_name] = max(0, current_value + delta)
+	last_daily_resource_changes.append({"resource": resource_name, "delta": delta, "source": source})
+
+func get_resource(resource_name: String) -> int:
+	return int(resources.get(resource_name, 0))
+
+func apply_daily_economy(resource_database) -> void:
+	for rule: Dictionary in resource_database.get_daily_production_rules():
+		if can_apply_resource_rule(rule):
+			change_resource(String(rule["resource"]), int(rule["delta"]), String(rule["source"]))
+	apply_food_consumption()
+	for rule: Dictionary in resource_database.get_periodic_cost_rules():
+		var every_days: int = int(rule.get("every_days", 1))
+		if every_days > 0 and day % every_days == 0:
+			change_resource(String(rule["resource"]), int(rule["delta"]), String(rule["source"]))
+	apply_low_resource_pressure()
+
+func can_apply_resource_rule(rule: Dictionary) -> bool:
+	if rule.has("requires_resource"):
+		var required_resource: String = String(rule["requires_resource"])
+		var required_minimum: int = int(rule.get("requires_minimum", 1))
+		return get_resource(required_resource) >= required_minimum
+	return true
+
+func apply_food_consumption() -> void:
+	change_resource("comida", -npc_order.size(), "Habitantes")
+
+func apply_low_resource_pressure() -> void:
+	if get_resource("comida") <= 5:
+		for npc_id: String in npc_order:
+			change_state(npc_id, "ánimo", -1)
+			change_state(npc_id, "estrés", 1)
+		change_resource("moral", -2, "Escasez de comida")
+	if get_resource("moral") <= 20:
+		for npc_id: String in npc_order:
+			change_state(npc_id, "estrés", 1)
+	if get_resource("seguridad") <= 20:
+		change_resource("moral", -1, "Inseguridad")
 
 func get_relation(from_id: String, to_id: String) -> int:
 	return int(npcs[from_id]["relationships"].get(to_id, 0))
