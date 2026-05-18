@@ -15,6 +15,7 @@ var selected_npc_id: String = "aldric"
 var village_state := VillageState.new()
 var event_system := EventSystem.new()
 var diary_system := DiarySystem.new()
+var event_feed_panel: PanelContainer
 var event_feed_container: VBoxContainer
 var event_feed_empty_label: RichTextLabel
 
@@ -87,19 +88,20 @@ func apply_translucent_context_style() -> void:
 	context_panel.add_theme_stylebox_override("panel", style)
 
 func create_event_feed_overlay() -> void:
-	var feed_panel := PanelContainer.new()
-	feed_panel.name = "EventFeedPanel"
-	feed_panel.clip_contents = true
-	feed_panel.custom_minimum_size = Vector2(420, 210)
-	feed_panel.anchor_left = 1.0
-	feed_panel.anchor_top = 1.0
-	feed_panel.anchor_right = 1.0
-	feed_panel.anchor_bottom = 1.0
-	feed_panel.offset_left = -455.0
-	feed_panel.offset_top = -255.0
-	feed_panel.offset_right = -32.0
-	feed_panel.offset_bottom = -45.0
-	feed_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	event_feed_panel = PanelContainer.new()
+	event_feed_panel.name = "EventFeedPanel"
+	event_feed_panel.visible = false
+	event_feed_panel.clip_contents = true
+	event_feed_panel.custom_minimum_size = Vector2(420, 210)
+	event_feed_panel.anchor_left = 1.0
+	event_feed_panel.anchor_top = 1.0
+	event_feed_panel.anchor_right = 1.0
+	event_feed_panel.anchor_bottom = 1.0
+	event_feed_panel.offset_left = -455.0
+	event_feed_panel.offset_top = -255.0
+	event_feed_panel.offset_right = -32.0
+	event_feed_panel.offset_bottom = -45.0
+	event_feed_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.04, 0.03, 0.02, 0.30)
@@ -111,7 +113,7 @@ func create_event_feed_overlay() -> void:
 	style.corner_radius_top_right = 8
 	style.corner_radius_bottom_left = 8
 	style.corner_radius_bottom_right = 8
-	feed_panel.add_theme_stylebox_override("panel", style)
+	event_feed_panel.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
 	margin.clip_contents = true
@@ -119,7 +121,7 @@ func create_event_feed_overlay() -> void:
 	margin.add_theme_constant_override("margin_top", 10)
 	margin.add_theme_constant_override("margin_right", 12)
 	margin.add_theme_constant_override("margin_bottom", 10)
-	feed_panel.add_child(margin)
+	event_feed_panel.add_child(margin)
 
 	event_feed_container = VBoxContainer.new()
 	event_feed_container.clip_contents = true
@@ -130,14 +132,15 @@ func create_event_feed_overlay() -> void:
 	margin.add_child(event_feed_container)
 
 	event_feed_empty_label = RichTextLabel.new()
+	event_feed_empty_label.visible = false
 	event_feed_empty_label.bbcode_enabled = true
 	event_feed_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	event_feed_empty_label.scroll_active = false
 	event_feed_empty_label.fit_content = true
 	event_feed_empty_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	event_feed_empty_label.text = "[b]Eventos recientes[/b]\n[color=#b8a890]Avanza el día para ver qué ocurre.[/color]"
+	event_feed_empty_label.text = ""
 	event_feed_container.add_child(event_feed_empty_label)
-	map_content.add_child(feed_panel)
+	map_content.add_child(event_feed_panel)
 
 func populate_npc_list() -> void:
 	npc_list.clear()
@@ -164,6 +167,7 @@ func _on_advance_day_pressed() -> void:
 	update_all_ui()
 
 func add_event_feed_entry(time_name: String, event_data: Dictionary) -> void:
+	event_feed_panel.visible = true
 	if event_feed_empty_label != null:
 		event_feed_empty_label.visible = false
 	var entry_label := RichTextLabel.new()
@@ -195,6 +199,7 @@ func trim_event_feed_messages() -> void:
 		var oldest: Node = message_labels.pop_front() as Node
 		if is_instance_valid(oldest):
 			oldest.queue_free()
+	call_deferred("update_event_feed_panel_visibility")
 
 func fade_event_feed_entry(entry_label: RichTextLabel) -> void:
 	await get_tree().create_timer(EVENT_FEED_LIFETIME).timeout
@@ -205,6 +210,17 @@ func fade_event_feed_entry(entry_label: RichTextLabel) -> void:
 	await fade_out.finished
 	if is_instance_valid(entry_label):
 		entry_label.queue_free()
+	call_deferred("update_event_feed_panel_visibility")
+
+func update_event_feed_panel_visibility() -> void:
+	if event_feed_panel == null or event_feed_container == null:
+		return
+	var has_active_messages := false
+	for child in event_feed_container.get_children():
+		if child.has_meta("event_feed_message") and not child.is_queued_for_deletion():
+			has_active_messages = true
+			break
+	event_feed_panel.visible = has_active_messages
 
 func update_all_ui() -> void:
 	update_title()
