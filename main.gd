@@ -209,7 +209,7 @@ func fade_event_feed_entry(entry_label: RichTextLabel) -> void:
 func update_all_ui() -> void:
 	update_title()
 	update_map_status()
-	if context_panel.visible:
+	if context_panel.visible and npc_info_label.visible:
 		update_npc_panel()
 
 func update_title() -> void:
@@ -236,7 +236,14 @@ func update_map_status() -> void:
 		village_state.npc_order.size()
 	]
 
+func reset_context_text_layout() -> void:
+	context_text_label.scroll_active = false
+	context_text_label.fit_content = true
+	context_text_label.custom_minimum_size = Vector2(320, 118)
+	context_text_label.size_flags_vertical = Control.SIZE_FILL
+
 func show_context(title: String, body: String, show_npcs: bool = false) -> void:
+	reset_context_text_layout()
 	context_panel.visible = true
 	context_title_label.text = title
 	context_text_label.text = body
@@ -256,7 +263,16 @@ func show_people_panel() -> void:
 	)
 
 func show_chronicle_panel() -> void:
-	show_context("Crónica", "\n\n".join(diary_system.get_recent_entries()), false)
+	context_panel.visible = true
+	context_title_label.text = "Crónica"
+	context_text_label.visible = true
+	context_text_label.text = "\n\n".join(diary_system.diary_history)
+	context_text_label.scroll_active = true
+	context_text_label.fit_content = false
+	context_text_label.custom_minimum_size = Vector2(320, 620)
+	context_text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	npc_list.visible = false
+	npc_info_label.visible = false
 
 func show_management_panel() -> void:
 	show_context(
