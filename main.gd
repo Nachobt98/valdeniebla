@@ -192,7 +192,7 @@ func trim_event_feed_messages() -> void:
 		if child.has_meta("event_feed_message"):
 			message_labels.append(child)
 	while message_labels.size() > MAX_VISIBLE_EVENT_FEED_MESSAGES:
-		var oldest := message_labels.pop_front()
+		var oldest: Node = message_labels.pop_front() as Node
 		if is_instance_valid(oldest):
 			oldest.queue_free()
 
