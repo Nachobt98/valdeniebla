@@ -67,235 +67,276 @@ text = "Ánimo 51/100   ·   Estrés 27/100   ·   Habitantes 8"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 17
 
-[node name="MainContent" type="HBoxContainer" parent="RootMargin/RootLayout" unique_id=1511884775]
+[node name="GameArea" type="Control" parent="RootMargin/RootLayout"]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="MapPanel" type="PanelContainer" parent="RootMargin/RootLayout/GameArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MapContent" type="Control" parent="RootMargin/RootLayout/GameArea/MapPanel"]
+layout_mode = 2
+
+[node name="MapTitleLabel" type="Label" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -230.0
+offset_top = 32.0
+offset_right = 230.0
+offset_bottom = 70.0
+grow_horizontal = 2
+text = "Mapa de Valdeniebla"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 30
+
+[node name="MapHintLabel" type="RichTextLabel" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -350.0
+offset_top = 74.0
+offset_right = 350.0
+offset_bottom = 132.0
+grow_horizontal = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = "[center]Haz clic en un lugar de la aldea o abre un panel desde la barra inferior.[/center]"
+
+[node name="ForgeButton" type="Button" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+custom_minimum_size = Vector2(180, 82)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -375.0
+offset_top = -110.0
+offset_right = -195.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "⚒ Herrería\nAldric · Gareth"
+theme_override_font_sizes/font_size = 19
+
+[node name="WellButton" type="Button" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+custom_minimum_size = Vector2(180, 82)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -90.0
+offset_top = -150.0
+offset_right = 90.0
+offset_bottom = -68.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "◉ Pozo\nEncuentros"
+theme_override_font_sizes/font_size = 19
+
+[node name="TavernButton" type="Button" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+custom_minimum_size = Vector2(180, 82)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 195.0
+offset_top = -110.0
+offset_right = 375.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "♨ Taberna\nMara"
+theme_override_font_sizes/font_size = 19
+
+[node name="FarmsButton" type="Button" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+custom_minimum_size = Vector2(180, 82)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -235.0
+offset_top = 80.0
+offset_right = -55.0
+offset_bottom = 162.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "♧ Granjas\nBran"
+theme_override_font_sizes/font_size = 19
+
+[node name="ChapelButton" type="Button" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+custom_minimum_size = Vector2(180, 82)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 55.0
+offset_top = 80.0
+offset_right = 235.0
+offset_bottom = 162.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "✚ Capilla\nTomas"
+theme_override_font_sizes/font_size = 19
+
+[node name="PasturesButton" type="Button" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+custom_minimum_size = Vector2(180, 82)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 340.0
+offset_top = 105.0
+offset_right = 520.0
+offset_bottom = 187.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "◇ Prados\nLysa"
+theme_override_font_sizes/font_size = 19
+
+[node name="MapStatusLabel" type="RichTextLabel" parent="RootMargin/RootLayout/GameArea/MapPanel/MapContent"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -420.0
+offset_top = -120.0
+offset_right = 420.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="ContextPanel" type="PanelContainer" parent="RootMargin/RootLayout/GameArea"]
+visible = false
+custom_minimum_size = Vector2(390, 0)
+layout_mode = 1
+anchors_preset = 13
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 406.0
+offset_bottom = -16.0
+grow_vertical = 2
+
+[node name="ContextMargin" type="MarginContainer" parent="RootMargin/RootLayout/GameArea/ContextPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="ContextContent" type="VBoxContainer" parent="RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ContextHeader" type="HBoxContainer" parent="RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent"]
+layout_mode = 2
+
+[node name="ContextTitleLabel" type="Label" parent="RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent/ContextHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Panel"
+theme_override_font_sizes/font_size = 23
+
+[node name="CloseContextButton" type="Button" parent="RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent/ContextHeader"]
+custom_minimum_size = Vector2(42, 34)
+layout_mode = 2
+text = "×"
+theme_override_font_sizes/font_size = 20
+
+[node name="ContextTextLabel" type="RichTextLabel" parent="RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent"]
+custom_minimum_size = Vector2(340, 180)
+layout_mode = 2
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = false
+text = ""
+
+[node name="NPCList" type="ItemList" parent="RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent"]
+visible = false
+custom_minimum_size = Vector2(340, 190)
+layout_mode = 2
+
+[node name="NPCInfoLabel" type="RichTextLabel" parent="RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent"]
+custom_minimum_size = Vector2(340, 360)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+autowrap_mode = 2
+scroll_active = true
+text = ""
+
+[node name="BottomBar" type="PanelContainer" parent="RootMargin/RootLayout"]
+custom_minimum_size = Vector2(0, 74)
+layout_mode = 2
+
+[node name="BottomBarMargin" type="MarginContainer" parent="RootMargin/RootLayout/BottomBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="ActionBar" type="HBoxContainer" parent="RootMargin/RootLayout/BottomBar/BottomBarMargin"]
+layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="LeftPanel" type="PanelContainer" parent="RootMargin/RootLayout/MainContent" unique_id=2027031128]
-custom_minimum_size = Vector2(350, 0)
-layout_mode = 2
-
-[node name="NPCMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/LeftPanel" unique_id=753462593]
-layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
-
-[node name="NPCInfo" type="VBoxContainer" parent="RootMargin/RootLayout/MainContent/LeftPanel/NPCMargin" unique_id=229083717]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="NPCListTitle" type="Label" parent="RootMargin/RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo"]
+[node name="PeopleButton" type="Button" parent="RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar"]
+custom_minimum_size = Vector2(145, 46)
 layout_mode = 2
 text = "Habitantes"
-theme_override_font_sizes/font_size = 21
 
-[node name="NPCList" type="ItemList" parent="RootMargin/RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo"]
-custom_minimum_size = Vector2(310, 180)
+[node name="ChronicleButton" type="Button" parent="RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar"]
+custom_minimum_size = Vector2(145, 46)
 layout_mode = 2
+text = "Crónica"
 
-[node name="NPCInfoLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo"]
-custom_minimum_size = Vector2(310, 440)
+[node name="ManagementButton" type="Button" parent="RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar"]
+custom_minimum_size = Vector2(145, 46)
 layout_mode = 2
-size_flags_vertical = 3
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = true
+text = "Gestión"
 
-[node name="VillagePanel" type="PanelContainer" parent="RootMargin/RootLayout/MainContent" unique_id=263680469]
+[node name="QuestsButton" type="Button" parent="RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar"]
+custom_minimum_size = Vector2(145, 46)
 layout_mode = 2
-size_flags_horizontal = 3
+text = "Quests"
 
-[node name="VillageMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel" unique_id=5313855]
+[node name="BuildButton" type="Button" parent="RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar"]
+custom_minimum_size = Vector2(145, 46)
 layout_mode = 2
-theme_override_constants/margin_left = 22
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 22
-theme_override_constants/margin_bottom = 18
+text = "Construir"
 
-[node name="VillageContent" type="VBoxContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin"]
-layout_mode = 2
-theme_override_constants/separation = 14
-
-[node name="VillageTitleLabel" type="Label" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent"]
-layout_mode = 2
-text = "Tablero de la aldea"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 27
-
-[node name="VillageStatusLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent"]
-custom_minimum_size = Vector2(0, 78)
-layout_mode = 2
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = false
-text = ""
-
-[node name="VillageBoard" type="GridContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent"]
-layout_mode = 2
-size_flags_horizontal = 3
-columns = 3
-theme_override_constants/h_separation = 10
-theme_override_constants/v_separation = 10
-
-[node name="ForgeCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
-custom_minimum_size = Vector2(190, 132)
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ForgeCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ForgeCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="ForgeCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ForgeCard/ForgeCardMargin"]
-layout_mode = 2
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = false
-text = ""
-
-[node name="TavernCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
-custom_minimum_size = Vector2(190, 132)
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="TavernCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/TavernCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="TavernCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/TavernCard/TavernCardMargin"]
-layout_mode = 2
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = false
-text = ""
-
-[node name="WellCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
-custom_minimum_size = Vector2(190, 132)
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="WellCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/WellCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="WellCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/WellCard/WellCardMargin"]
-layout_mode = 2
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = false
-text = ""
-
-[node name="FarmsCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
-custom_minimum_size = Vector2(190, 132)
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="FarmsCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/FarmsCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="FarmsCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/FarmsCard/FarmsCardMargin"]
-layout_mode = 2
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = false
-text = ""
-
-[node name="ChapelCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
-custom_minimum_size = Vector2(190, 132)
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ChapelCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ChapelCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="ChapelCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/ChapelCard/ChapelCardMargin"]
-layout_mode = 2
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = false
-text = ""
-
-[node name="PasturesCard" type="PanelContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard"]
-custom_minimum_size = Vector2(190, 132)
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PasturesCardMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/PasturesCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="PasturesCardLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent/VillageBoard/PasturesCard/PasturesCardMargin"]
-layout_mode = 2
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = false
-text = ""
-
-[node name="VillageRumorLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageContent"]
-custom_minimum_size = Vector2(0, 130)
-layout_mode = 2
-size_flags_vertical = 3
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = false
-text = ""
-
-[node name="RightPanel" type="PanelContainer" parent="RootMargin/RootLayout/MainContent" unique_id=1118883479]
-custom_minimum_size = Vector2(450, 0)
-layout_mode = 2
-
-[node name="NPCMargin" type="MarginContainer" parent="RootMargin/RootLayout/MainContent/RightPanel" unique_id=1274842473]
-layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
-
-[node name="DiaryPanel" type="VBoxContainer" parent="RootMargin/RootLayout/MainContent/RightPanel/NPCMargin" unique_id=1672511313]
-custom_minimum_size = Vector2(410, 0)
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="DiaryTitleLabel" type="Label" parent="RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel" unique_id=987979208]
-layout_mode = 2
-text = "Crónica de la aldea"
-theme_override_font_sizes/font_size = 21
-
-[node name="DiaryEntriesLabel" type="RichTextLabel" parent="RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel" unique_id=1766414139]
-custom_minimum_size = Vector2(410, 520)
-layout_mode = 2
-size_flags_vertical = 3
-bbcode_enabled = true
-autowrap_mode = 2
-scroll_active = true
-text = ""
-
-[node name="AdvanceDayButton" type="Button" parent="RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel" unique_id=1626155714]
-custom_minimum_size = Vector2(0, 46)
+[node name="AdvanceDayButton" type="Button" parent="RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar" unique_id=1626155714]
+custom_minimum_size = Vector2(170, 46)
 layout_mode = 2
 text = "Avanzar día"
 theme_override_font_sizes/font_size = 20
