@@ -2,6 +2,7 @@ extends Control
 
 const NPCDatabase = preload("res://data/npc_database.gd")
 const EventDatabase = preload("res://data/event_database.gd")
+const ResourceDatabase = preload("res://data/resource_database.gd")
 const VillageState = preload("res://scripts/village_state.gd")
 const EventSystem = preload("res://scripts/event_system.gd")
 const DiarySystem = preload("res://scripts/diary_system.gd")
@@ -46,7 +47,7 @@ var event_feed_empty_label: RichTextLabel
 @onready var pastures_button: Button = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/PasturesButton
 
 func _ready() -> void:
-	village_state.setup(NPCDatabase.get_npc_order(), NPCDatabase.get_initial_npcs())
+	village_state.setup(NPCDatabase.get_npc_order(), NPCDatabase.get_initial_npcs(), ResourceDatabase.get_initial_resources())
 	event_system.setup(EventDatabase.get_events())
 	diary_system.setup_initial_entry()
 	populate_npc_list()
@@ -64,12 +65,12 @@ func connect_signals() -> void:
 	management_button.pressed.connect(show_management_panel)
 	quests_button.pressed.connect(show_quests_panel)
 	build_button.pressed.connect(show_build_panel)
-	forge_button.pressed.connect(func(): show_building_panel("Herrería", "Aldric · Gareth", "Forja, herramientas, reparaciones y futuras armas.", "El yunque marca el pulso material de Valdeniebla."))
-	tavern_button.pressed.connect(func(): show_building_panel("Taberna", "Mara", "Rumores, moral, viajeros y futuras decisiones sociales.", "Aquí la aldea habla antes de saber qué piensa."))
-	well_button.pressed.connect(func(): show_building_panel("Pozo", "Vecinos de paso", "Encuentros casuales, conversaciones breves y rumores pequeños.", "Todo el mundo acaba pasando por el pozo."))
-	farms_button.pressed.connect(func(): show_building_panel("Granjas", "Bran", "Comida, cosechas, fatiga, clima y preparación del invierno.", "Si los campos fallan, toda la aldea lo nota."))
-	chapel_button.pressed.connect(func(): show_building_panel("Capilla", "Tomas", "Crónica, memoria, mediación y primeras pistas de la trama principal.", "Las velas recuerdan más de lo que dicen."))
-	pastures_button.pressed.connect(func(): show_building_panel("Prados", "Lysa", "Ganado, lindes, vigilancia rural y frontera exterior.", "Más allá de los prados empieza lo incierto."))
+	forge_button.pressed.connect(func(): show_building_panel("Herrería", "Aldric · Gareth", "Seguridad +1/día si queda hierro. Coste: -1 hierro cada 3 días.", "El yunque marca el pulso material de Valdeniebla."))
+	tavern_button.pressed.connect(func(): show_building_panel("Taberna", "Mara", "Moral +1/día. Más adelante influirá en rumores, visitantes y comercio.", "Aquí la aldea habla antes de saber qué piensa."))
+	well_button.pressed.connect(func(): show_building_panel("Pozo", "Vecinos de paso", "Estabilidad cotidiana. Más adelante afectará salud, reuniones y eventos sociales.", "Todo el mundo acaba pasando por el pozo."))
+	farms_button.pressed.connect(func(): show_building_panel("Granjas", "Bran", "Comida +10/día.", "Si los campos fallan, toda la aldea lo nota."))
+	chapel_button.pressed.connect(func(): show_building_panel("Capilla", "Tomas", "Moral +1/día. Más adelante afectará memoria, mediación y tramas principales.", "Las velas recuerdan más de lo que dicen."))
+	pastures_button.pressed.connect(func(): show_building_panel("Prados", "Lysa", "Comida +3/día. Más adelante aportará vigilancia rural y medicina natural.", "Más allá de los prados empieza lo incierto."))
 
 func apply_translucent_context_style() -> void:
 	context_panel.custom_minimum_size = Vector2(350, 0)
@@ -159,12 +160,27 @@ func _on_close_context_pressed() -> void:
 
 func _on_advance_day_pressed() -> void:
 	village_state.advance_day()
+	village_state.apply_daily_economy(ResourceDatabase)
+	diary_system.add_daily_economy_entry(village_state)
+	add_event_feed_entry("Balance", {"location": "Aldea", "title": get_daily_resource_feed_summary()})
 	for time_name in DAY_TIMES:
 		var event_data = event_system.pick_event(village_state)
 		event_system.apply_event(event_data, village_state)
 		diary_system.add_entry(time_name, event_data, village_state)
 		add_event_feed_entry(time_name, event_data)
 	update_all_ui()
+	if context_panel.visible and context_title_label.text == "Gestión":
+		show_management_panel()
+	elif context_panel.visible and context_title_label.text == "Crónica":
+		show_chronicle_panel()
+
+func get_daily_resource_feed_summary() -> String:
+	var chunks: Array[String] = []
+	for change: Dictionary in village_state.last_daily_resource_changes:
+		chunks.append("%s %+d" % [String(change["resource"]).capitalize(), int(change["delta"])])
+	if chunks.is_empty():
+		return "Sin cambios de recursos"
+	return " · ".join(chunks)
 
 func add_event_feed_entry(time_name: String, event_data: Dictionary) -> void:
 	event_feed_panel.visible = true
@@ -229,27 +245,30 @@ func update_all_ui() -> void:
 		update_npc_panel()
 
 func update_title() -> void:
-	var average_mood := village_state.get_average_state("ánimo")
-	var average_stress := village_state.get_average_state("estrés")
 	title_label.text = "Valdeniebla — %s, Año %d — Día %d" % [
 		village_state.season,
 		village_state.year,
 		village_state.day
 	]
-	top_stats_label.text = "Ánimo %d/100   ·   Estrés %d/100   ·   Habitantes %d   ·   Crónica %d eventos" % [
-		average_mood,
-		average_stress,
-		village_state.npc_order.size(),
-		diary_system.diary_history.size()
+	top_stats_label.text = "Comida %d · Madera %d · Hierro %d · Medicina %d · Moral %d · Seguridad %d" % [
+		village_state.get_resource("comida"),
+		village_state.get_resource("madera"),
+		village_state.get_resource("hierro"),
+		village_state.get_resource("medicina"),
+		village_state.get_resource("moral"),
+		village_state.get_resource("seguridad")
 	]
 
 func update_map_status() -> void:
 	var average_mood := village_state.get_average_state("ánimo")
 	var average_stress := village_state.get_average_state("estrés")
-	map_status_label.text = "[center][b]Pulso de la aldea[/b]\nÁnimo medio: %d/100 · Estrés medio: %d/100 · Habitantes: %d\nCada edificio será una puerta a tareas, recursos, quests y conflictos.[/center]" % [
+	map_status_label.text = "[center][b]Pulso de la aldea[/b]\nÁnimo medio: %d/100 · Estrés medio: %d/100 · Habitantes: %d\nComida: %d · Moral: %d · Seguridad: %d[/center]" % [
 		average_mood,
 		average_stress,
-		village_state.npc_order.size()
+		village_state.npc_order.size(),
+		village_state.get_resource("comida"),
+		village_state.get_resource("moral"),
+		village_state.get_resource("seguridad")
 	]
 
 func reset_context_text_layout() -> void:
@@ -291,11 +310,24 @@ func show_chronicle_panel() -> void:
 	npc_info_label.visible = false
 
 func show_management_panel() -> void:
-	show_context(
-		"Gestión",
-		"[b]Próximo sistema[/b]\nAquí irán recursos, prioridades, producción diaria, moral, seguridad y decisiones de aldea.\n\n[b]Objetivo[/b]\nQue el jugador piense antes de avanzar el día, no solo pulse un botón.",
-		false
-	)
+	show_context("Gestión", get_management_panel_text(), false)
+
+func get_management_panel_text() -> String:
+	var text := "[b]Recursos[/b]\n"
+	for resource_name: String in ResourceDatabase.get_resource_order():
+		text += "%s: %d\n" % [String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name)), village_state.get_resource(resource_name)]
+	text += "\n[b]Producción diaria[/b]\n"
+	for rule: Dictionary in ResourceDatabase.get_daily_production_rules():
+		text += "• %s: %s %+d\n" % [String(rule["source"]), String(rule["resource"]).capitalize(), int(rule["delta"])]
+	text += "\n[b]Consumo[/b]\n"
+	text += "• Habitantes: Comida -%d/día\n" % village_state.npc_order.size()
+	text += "\n[b]Último balance[/b]\n"
+	if village_state.last_daily_resource_changes.is_empty():
+		text += "Aún no hay balance diario."
+	else:
+		for change: Dictionary in village_state.last_daily_resource_changes:
+			text += "• %s %+d (%s)\n" % [String(change["resource"]).capitalize(), int(change["delta"]), String(change.get("source", "aldea"))]
+	return text
 
 func show_quests_panel() -> void:
 	show_context(

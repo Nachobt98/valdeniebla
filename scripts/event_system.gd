@@ -119,4 +119,6 @@ func apply_event(event_data: Dictionary, village_state) -> void:
 			village_state.change_state(effect["target"], effect["state"], int(effect["delta"]))
 		elif effect.has("relation_delta"):
 			village_state.change_relation(effect["from"], effect["to"], int(effect["relation_delta"]))
+		elif effect.has("resource"):
+			village_state.change_resource(effect["resource"], int(effect["delta"]), event_data.get("title", "Evento"))
 	village_state.record_event(event_data)
