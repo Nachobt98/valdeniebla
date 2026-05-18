@@ -13,13 +13,13 @@ var village_state := VillageState.new()
 var event_system := EventSystem.new()
 var diary_system := DiarySystem.new()
 
-@onready var title_label: Label = $RootLayout/TopBar/TitleLabel
-@onready var npc_list: ItemList = $RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo/NPCList
-@onready var npc_info_label: RichTextLabel = $RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo/NPCInfoLabel
-@onready var village_overview_label: RichTextLabel = $RootLayout/MainContent/VillagePanel/VillageMargin/VillageOverviewLabel
-@onready var diary_title_label: Label = $RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/DiaryTitleLabel
-@onready var diary_entries_label: RichTextLabel = $RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/DiaryEntriesLabel
-@onready var advance_day_button: Button = $RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/AdvanceDayButton
+@onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TitleLabel
+@onready var npc_list: ItemList = $RootMargin/RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo/NPCList
+@onready var npc_info_label: RichTextLabel = $RootMargin/RootLayout/MainContent/LeftPanel/NPCMargin/NPCInfo/NPCInfoLabel
+@onready var village_overview_label: RichTextLabel = $RootMargin/RootLayout/MainContent/VillagePanel/VillageMargin/VillageOverviewLabel
+@onready var diary_title_label: Label = $RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/DiaryTitleLabel
+@onready var diary_entries_label: RichTextLabel = $RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/DiaryEntriesLabel
+@onready var advance_day_button: Button = $RootMargin/RootLayout/MainContent/RightPanel/NPCMargin/DiaryPanel/AdvanceDayButton
 
 func _ready() -> void:
 	village_state.setup(NPCDatabase.get_npc_order(), NPCDatabase.get_initial_npcs())
@@ -79,10 +79,10 @@ func update_npc_panel() -> void:
 func update_village_overview() -> void:
 	var average_mood := village_state.get_average_state("ánimo")
 	var average_stress := village_state.get_average_state("estrés")
-	village_overview_label.text = "[center][b]Valdeniebla[/b][/center]\n\n" + \
-		"[b]Estado de la aldea[/b]\nÁnimo medio: %d/100\nEstrés medio: %d/100\nHabitantes registrados: %d\n\n" % [average_mood, average_stress, village_state.npc_order.size()] + \
-		"[b]Lugares actuales[/b]\nHerrería · Taberna · Pozo · Granjas · Prados · Capilla · Casa comunal\n\n" + \
-		"[b]Lectura de diseño[/b]\nLa lógica principal ya está separada en módulos: datos, estado de aldea, eventos, diario y controlador de UI."
+	village_overview_label.text = "[center][font_size=26][b]Valdeniebla[/b][/font_size][/center]\n\n" + \
+		"[b]Pulso de la aldea[/b]\nÁnimo medio: %d/100\nEstrés medio: %d/100\nHabitantes registrados: %d\n\n" % [average_mood, average_stress, village_state.npc_order.size()] + \
+		"[b]Lugares[/b]\nHerrería · Taberna · Pozo · Granjas · Prados · Capilla · Casa comunal\n\n" + \
+		"[b]Rumor del día[/b]\nLa niebla baja aún se agarra a los tejados. En la plaza se oyen pasos, cubos de agua y conversaciones que nadie termina de decir en voz alta."
 
 func update_diary() -> void:
 	diary_title_label.text = "Crónica de la aldea"
