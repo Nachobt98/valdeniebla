@@ -28,6 +28,7 @@ var dynamic_context_buttons: Array[Button] = []
 @onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TitleLabel
 @onready var top_stats_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TopStatsLabel
 @onready var map_content: Control = $RootMargin/RootLayout/GameArea/MapPanel/MapContent
+@onready var village_map_view: VillageMapView = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/VillageMapView
 @onready var map_status_label: RichTextLabel = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/MapStatusLabel
 
 @onready var context_panel: PanelContainer = $RootMargin/RootLayout/GameArea/ContextPanel
@@ -45,13 +46,6 @@ var dynamic_context_buttons: Array[Button] = []
 @onready var build_button: Button = $RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar/BuildButton
 @onready var advance_day_button: Button = $RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar/AdvanceDayButton
 
-@onready var forge_button: Button = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/ForgeButton
-@onready var tavern_button: Button = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/TavernButton
-@onready var well_button: Button = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/WellButton
-@onready var farms_button: Button = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/FarmsButton
-@onready var chapel_button: Button = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/ChapelButton
-@onready var pastures_button: Button = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/PasturesButton
-
 func _ready() -> void:
 	village_state.setup(
 		NPCDatabase.get_npc_order(),
@@ -63,6 +57,8 @@ func _ready() -> void:
 	event_system.setup(EventDatabase.get_events())
 	diary_system.setup_initial_entry()
 	populate_npc_list()
+	village_map_view.set_npcs(village_state.npcs)
+	apply_visual_map_style()
 	apply_translucent_context_style()
 	create_event_feed_overlay()
 	connect_signals()
@@ -77,27 +73,71 @@ func connect_signals() -> void:
 	management_button.pressed.connect(show_management_panel)
 	quests_button.pressed.connect(show_quests_panel)
 	build_button.pressed.connect(show_build_panel)
-	forge_button.pressed.connect(func(): show_building_panel("forge"))
-	tavern_button.pressed.connect(func(): show_building_panel("tavern"))
-	well_button.pressed.connect(func(): show_building_panel("well"))
-	farms_button.pressed.connect(func(): show_building_panel("farms"))
-	chapel_button.pressed.connect(func(): show_building_panel("chapel"))
-	pastures_button.pressed.connect(func(): show_building_panel("pastures"))
+	village_map_view.building_selected.connect(show_building_panel)
+	village_map_view.npc_selected.connect(show_npc_from_map)
 
-func apply_translucent_context_style() -> void:
-	context_panel.custom_minimum_size = Vector2(350, 0)
-	context_panel.offset_right = 366.0
+func apply_visual_map_style() -> void:
+	var map_panel: PanelContainer = $RootMargin/RootLayout/GameArea/MapPanel
+	var map_style := StyleBoxFlat.new()
+	map_style.bg_color = Color(0.055, 0.067, 0.055, 1.0)
+	map_style.border_color = Color(0.52, 0.47, 0.31, 0.36)
+	map_style.border_width_left = 1
+	map_style.border_width_top = 1
+	map_style.border_width_right = 1
+	map_style.border_width_bottom = 1
+	map_style.corner_radius_top_left = 0
+	map_style.corner_radius_top_right = 0
+	map_style.corner_radius_bottom_left = 0
+	map_style.corner_radius_bottom_right = 0
+	map_panel.add_theme_stylebox_override("panel", map_style)
+
+	var top_bar: PanelContainer = $RootMargin/RootLayout/TopBar
+	top_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.035, 0.04, 0.044, 0.86), Color(0.72, 0.62, 0.38, 0.24), 0))
+
+	var bottom_bar: PanelContainer = $RootMargin/RootLayout/BottomBar
+	bottom_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.04, 0.048, 0.052, 0.90), Color(0.72, 0.62, 0.38, 0.28), 0))
+
+	for button: Button in [people_button, chronicle_button, management_button, quests_button, build_button]:
+		button.add_theme_font_size_override("font_size", 17)
+
+	advance_day_button.add_theme_font_size_override("font_size", 18)
+
+func make_hud_panel_style(bg_color: Color, border_color: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.05, 0.035, 0.78)
-	style.border_color = Color(0.64, 0.45, 0.18, 0.38)
+	style.bg_color = bg_color
+	style.border_color = border_color
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.corner_radius_top_left = 10
-	style.corner_radius_top_right = 10
-	style.corner_radius_bottom_left = 10
-	style.corner_radius_bottom_right = 10
+	style.corner_radius_top_left = radius
+	style.corner_radius_top_right = radius
+	style.corner_radius_bottom_left = radius
+	style.corner_radius_bottom_right = radius
+	style.content_margin_left = 10
+	style.content_margin_top = 8
+	style.content_margin_right = 10
+	style.content_margin_bottom = 8
+	return style
+
+func apply_translucent_context_style() -> void:
+	context_panel.custom_minimum_size = Vector2(410, 0)
+	context_panel.offset_right = 436.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.025, 0.031, 0.034, 0.90)
+	style.border_color = Color(0.72, 0.62, 0.38, 0.32)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 7
+	style.corner_radius_top_right = 7
+	style.corner_radius_bottom_left = 7
+	style.corner_radius_bottom_right = 7
+	style.content_margin_left = 2
+	style.content_margin_top = 2
+	style.content_margin_right = 2
+	style.content_margin_bottom = 2
 	context_panel.add_theme_stylebox_override("panel", style)
 
 func create_event_feed_overlay() -> void:
@@ -105,23 +145,24 @@ func create_event_feed_overlay() -> void:
 	event_feed_panel.name = "EventFeedPanel"
 	event_feed_panel.visible = false
 	event_feed_panel.clip_contents = true
-	event_feed_panel.custom_minimum_size = Vector2(420, 210)
+	event_feed_panel.custom_minimum_size = Vector2(430, 230)
 	event_feed_panel.anchor_left = 1.0
 	event_feed_panel.anchor_top = 1.0
 	event_feed_panel.anchor_right = 1.0
 	event_feed_panel.anchor_bottom = 1.0
-	event_feed_panel.offset_left = -455.0
-	event_feed_panel.offset_top = -255.0
-	event_feed_panel.offset_right = -32.0
-	event_feed_panel.offset_bottom = -45.0
+	event_feed_panel.offset_left = -466.0
+	event_feed_panel.offset_top = -314.0
+	event_feed_panel.offset_right = -28.0
+	event_feed_panel.offset_bottom = -84.0
 	event_feed_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.02, 0.30)
-	style.border_width_left = 0
-	style.border_width_top = 0
-	style.border_width_right = 0
-	style.border_width_bottom = 0
+	style.bg_color = Color(0.025, 0.031, 0.034, 0.70)
+	style.border_color = Color(0.72, 0.62, 0.38, 0.18)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
 	style.corner_radius_top_left = 8
 	style.corner_radius_top_right = 8
 	style.corner_radius_bottom_left = 8
@@ -351,9 +392,20 @@ func show_context(title: String, body: String, show_npcs: bool = false) -> void:
 	npc_list.visible = show_npcs
 	npc_info_label.visible = show_npcs
 	if show_npcs:
-		npc_list.select(0)
+		var npc_index := village_state.npc_order.find(selected_npc_id)
+		npc_list.select(maxi(0, npc_index))
 		npc_list.ensure_current_is_visible()
 		update_npc_panel()
+
+func show_npc_from_map(npc_id: String) -> void:
+	if not village_state.npcs.has(npc_id):
+		return
+	selected_npc_id = npc_id
+	var npc_index := village_state.npc_order.find(npc_id)
+	if npc_index >= 0:
+		npc_list.select(npc_index)
+	village_map_view.select_npc(npc_id)
+	show_context("Habitantes", "", true)
 
 func add_context_button(text: String, callback: Callable, disabled: bool = false) -> Button:
 	var button := Button.new()
@@ -475,6 +527,7 @@ func show_building_panel(building_id: String) -> void:
 	if not village_state.has_building(building_id):
 		show_context("Edificio", "No hay datos registrados para este edificio.", false)
 		return
+	village_map_view.select_building(building_id)
 	var building: Dictionary = village_state.get_building(building_id)
 	show_context(String(building.get("name", "Edificio")), get_building_panel_text(building), false)
 
