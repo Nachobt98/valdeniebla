@@ -6,6 +6,7 @@ const ResourceDatabase = preload("res://data/resource_database.gd")
 const BuildingDatabase = preload("res://data/building_database.gd")
 const MonthlyStrategyDatabase = preload("res://data/monthly_strategy_database.gd")
 const DecisionEventDatabase = preload("res://data/decision_event_database.gd")
+const UiAssetDatabase = preload("res://data/ui_asset_database.gd")
 const VillageState = preload("res://scripts/village_state.gd")
 const EventSystem = preload("res://scripts/event_system.gd")
 const DiarySystem = preload("res://scripts/diary_system.gd")
@@ -23,6 +24,8 @@ var diary_system := DiarySystem.new()
 var event_feed_panel: PanelContainer
 var event_feed_container: VBoxContainer
 var event_feed_empty_label: RichTextLabel
+var resource_strip: HBoxContainer
+var resource_value_labels: Dictionary = {}
 var dynamic_context_buttons: Array[Button] = []
 
 @onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TitleLabel
@@ -60,6 +63,7 @@ func _ready() -> void:
 	village_map_view.set_npcs(village_state.npcs)
 	apply_visual_map_style()
 	apply_translucent_context_style()
+	create_resource_strip()
 	create_event_feed_overlay()
 	connect_signals()
 	update_all_ui()
@@ -92,10 +96,10 @@ func apply_visual_map_style() -> void:
 	map_panel.add_theme_stylebox_override("panel", map_style)
 
 	var top_bar: PanelContainer = $RootMargin/RootLayout/TopBar
-	top_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.035, 0.04, 0.044, 0.86), Color(0.72, 0.62, 0.38, 0.24), 0))
+	top_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.035, 0.04, 0.044, 0.90), Color(0.72, 0.62, 0.38, 0.32), 0))
 
 	var bottom_bar: PanelContainer = $RootMargin/RootLayout/BottomBar
-	bottom_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.04, 0.048, 0.052, 0.90), Color(0.72, 0.62, 0.38, 0.28), 0))
+	bottom_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.04, 0.048, 0.052, 0.92), Color(0.72, 0.62, 0.38, 0.34), 0))
 
 	for button: Button in [people_button, chronicle_button, management_button, quests_button, build_button]:
 		button.add_theme_font_size_override("font_size", 17)
@@ -124,8 +128,8 @@ func apply_translucent_context_style() -> void:
 	context_panel.custom_minimum_size = Vector2(410, 0)
 	context_panel.offset_right = 436.0
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.031, 0.034, 0.90)
-	style.border_color = Color(0.72, 0.62, 0.38, 0.32)
+	style.bg_color = Color(0.025, 0.031, 0.034, 0.92)
+	style.border_color = Color(0.72, 0.62, 0.38, 0.38)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
@@ -139,6 +143,71 @@ func apply_translucent_context_style() -> void:
 	style.content_margin_right = 2
 	style.content_margin_bottom = 2
 	context_panel.add_theme_stylebox_override("panel", style)
+
+func create_resource_strip() -> void:
+	if resource_strip != null:
+		return
+	top_stats_label.visible = false
+	var top_bar_content: BoxContainer = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent
+	resource_strip = HBoxContainer.new()
+	resource_strip.name = "ResourceIconStrip"
+	resource_strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	resource_strip.alignment = BoxContainer.ALIGNMENT_END
+	resource_strip.add_theme_constant_override("separation", 8)
+	top_bar_content.add_child(resource_strip)
+	for resource_name: String in ResourceDatabase.get_resource_order():
+		var chip := make_resource_chip(resource_name)
+		resource_strip.add_child(chip)
+
+func make_resource_chip(resource_name: String) -> PanelContainer:
+	var chip := PanelContainer.new()
+	chip.name = "%sChip" % resource_name.capitalize()
+	chip.tooltip_text = String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name))
+	chip.add_theme_stylebox_override("panel", make_resource_chip_style())
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_right", 7)
+	margin.add_theme_constant_override("margin_top", 3)
+	margin.add_theme_constant_override("margin_bottom", 3)
+	chip.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	margin.add_child(row)
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(22, 22)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var icon_path := String(UiAssetDatabase.get_resource_icon_paths().get(resource_name, ""))
+	if icon_path != "":
+		icon.texture = load(icon_path)
+	row.add_child(icon)
+	var value_label := Label.new()
+	value_label.add_theme_font_size_override("font_size", 16)
+	value_label.add_theme_color_override("font_color", Color(0.88, 0.80, 0.64))
+	value_label.text = "0"
+	row.add_child(value_label)
+	resource_value_labels[resource_name] = value_label
+	return chip
+
+func make_resource_chip_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.095, 0.07, 0.82)
+	style.border_color = Color(0.65, 0.52, 0.30, 0.42)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	return style
+
+func update_resource_strip() -> void:
+	for resource_name: String in ResourceDatabase.get_resource_order():
+		if resource_value_labels.has(resource_name):
+			var label: Label = resource_value_labels[resource_name]
+			label.text = str(village_state.get_resource(resource_name))
 
 func create_event_feed_overlay() -> void:
 	event_feed_panel = PanelContainer.new()
@@ -337,6 +406,7 @@ func update_event_feed_panel_visibility() -> void:
 
 func update_all_ui() -> void:
 	update_title()
+	update_resource_strip()
 	update_map_status()
 	if context_panel.visible and npc_info_label.visible:
 		update_npc_panel()
@@ -348,14 +418,6 @@ func update_title() -> void:
 		village_state.month,
 		village_state.day_of_month,
 		village_state.DAYS_PER_MONTH
-	]
-	top_stats_label.text = "Comida %d · Madera %d · Hierro %d · Medicina %d · Moral %d · Seguridad %d" % [
-		village_state.get_resource("comida"),
-		village_state.get_resource("madera"),
-		village_state.get_resource("hierro"),
-		village_state.get_resource("medicina"),
-		village_state.get_resource("moral"),
-		village_state.get_resource("seguridad")
 	]
 
 func update_map_status() -> void:
@@ -463,10 +525,15 @@ func get_management_panel_text() -> String:
 		text += "\nLa prioridad se podrá cambiar al comenzar el próximo mes.\n"
 	text += "\n[b]Oficios activos[/b]\n"
 	for line: String in village_state.get_job_summary_lines():
-		text += "%s\n" % line
+		text += "%s\n" % colorize_job_status_line(line)
 	text += "\n[b]Recursos[/b]\n"
 	for resource_name: String in ResourceDatabase.get_resource_order():
-		text += "%s: %d\n" % [String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name)), village_state.get_resource(resource_name)]
+		var label := String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name))
+		var icon_path := String(UiAssetDatabase.get_resource_icon_paths().get(resource_name, ""))
+		if icon_path != "":
+			text += "[img=18x18]%s[/img] %s: %d\n" % [icon_path, label, village_state.get_resource(resource_name)]
+		else:
+			text += "%s: %d\n" % [label, village_state.get_resource(resource_name)]
 	text += "\n[b]Último balance[/b]\n"
 	if village_state.last_daily_resource_changes.is_empty():
 		text += "Aún no hay balance diario."
@@ -474,6 +541,15 @@ func get_management_panel_text() -> String:
 		for change: Dictionary in village_state.last_daily_resource_changes:
 			text += "• %s %+d (%s)\n" % [String(change["resource"]).capitalize(), int(change["delta"]), String(change.get("source", "aldea"))]
 	return text
+
+func colorize_job_status_line(line: String) -> String:
+	if line.ends_with("activo"):
+		return "[color=#8aac73]%s[/color]" % line
+	if line.ends_with("riesgo"):
+		return "[color=#d09347]%s[/color]" % line
+	if line.ends_with("bloqueado"):
+		return "[color=#a33b35]%s[/color]" % line
+	return line
 
 func show_decision_panel() -> void:
 	if not village_state.has_pending_decision():
