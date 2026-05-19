@@ -7,6 +7,7 @@ const BuildingDatabase = preload("res://data/building_database.gd")
 const MonthlyStrategyDatabase = preload("res://data/monthly_strategy_database.gd")
 const DecisionEventDatabase = preload("res://data/decision_event_database.gd")
 const UiAssetDatabase = preload("res://data/ui_asset_database.gd")
+const UiTextFormatter = preload("res://scripts/ui_text_formatter.gd")
 const VillageState = preload("res://scripts/village_state.gd")
 const EventSystem = preload("res://scripts/event_system.gd")
 const DiarySystem = preload("res://scripts/diary_system.gd")
@@ -644,24 +645,24 @@ func update_npc_panel() -> void:
 	if not npc_info_label.visible:
 		return
 	var npc: Dictionary = village_state.npcs[selected_npc_id]
-	var text := get_npc_portrait_bbcode(selected_npc_id)
-	text += "[font_size=23][b]%s[/b][/font_size]\n%d años — %s\n[i]%s[/i]\n\n" % [
-		npc["name"],
-		int(npc["age"]),
-		npc["profession"],
-		npc["location"]
-	]
-	text += "[b]Rasgos[/b]\n%s\n\n" % ", ".join(npc["traits"])
-	text += "[b]Habilidades[/b]\n%s\n\n" % format_dictionary(npc["stats"])
-	text += "[b]Estado[/b]\n%s\n\n" % format_dictionary(npc["state"])
-	text += "[b]Relaciones[/b]\n%s" % format_relationships(selected_npc_id)
+	var portrait_path := String(UiAssetDatabase.get_portrait_paths().get(selected_npc_id, ""))
+	var text := UiTextFormatter.portrait(portrait_path)
+	text += UiTextFormatter.header(npc["name"], int(npc["age"]), npc["profession"], npc["location"])
+	text += UiTextFormatter.section("Rasgos")
+	text += UiTextFormatter.trait_chips(npc["traits"]) + "\n"
+	text += UiTextFormatter.section("Habilidades")
+	text += UiTextFormatter.stats_block(npc["stats"]) + "\n"
+	text += UiTextFormatter.section("Estado")
+	text += UiTextFormatter.state_block(npc["state"])
+	text += UiTextFormatter.section("Relaciones")
+	text += format_relationships(selected_npc_id)
 	npc_info_label.text = text
 
 func get_npc_portrait_bbcode(npc_id: String) -> String:
 	var portrait_path := String(UiAssetDatabase.get_portrait_paths().get(npc_id, ""))
 	if portrait_path == "":
 		return ""
-	return "[center][img=190x190]%s[/img][/center]\n" % portrait_path
+	return UiTextFormatter.portrait(portrait_path)
 
 func format_dictionary(values: Dictionary) -> String:
 	var chunks: Array[String] = []
@@ -675,5 +676,5 @@ func format_relationships(npc_id: String) -> String:
 	for other_id in village_state.npc_order:
 		if other_id == npc_id:
 			continue
-		chunks.append("%s %+d" % [village_state.npcs[other_id]["name"], int(relationships.get(other_id, 0))])
+		chunks.append(UiTextFormatter.relationship_line(village_state.npcs[other_id]["name"], int(relationships.get(other_id, 0))))
 	return "\n".join(chunks)
