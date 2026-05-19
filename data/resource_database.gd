@@ -1,5 +1,7 @@
 extends RefCounted
 
+const JobDatabase = preload("res://data/job_database.gd")
+
 static func get_initial_resources() -> Dictionary:
 	return {
 		"comida": 60,
@@ -24,13 +26,17 @@ static func get_resource_labels() -> Dictionary:
 	}
 
 static func get_daily_production_rules() -> Array[Dictionary]:
-	return [
-		{"source": "Granjas", "resource": "comida", "delta": 10, "description": "Las granjas sostienen la despensa diaria."},
-		{"source": "Prados", "resource": "comida", "delta": 3, "description": "Los prados aportan ganado y pequeñas reservas."},
-		{"source": "Taberna", "resource": "moral", "delta": 1, "description": "La taberna mantiene viva la conversación."},
-		{"source": "Capilla", "resource": "moral", "delta": 1, "description": "La capilla da consuelo y rutina compartida."},
-		{"source": "Herrería", "resource": "seguridad", "delta": 1, "requires_resource": "hierro", "requires_minimum": 1, "description": "La herrería convierte mantenimiento y metal en defensa básica."}
-	]
+	var rules: Array[Dictionary] = []
+	for job_id: String in JobDatabase.get_job_order():
+		var job: Dictionary = JobDatabase.get_job(job_id)
+		for effect: Dictionary in job.get("daily_effects", []):
+			var rule := effect.duplicate(true)
+			rule["description"] = job.get("description", "")
+			if job.has("requires_resource"):
+				rule["requires_resource"] = job["requires_resource"]
+				rule["requires_minimum"] = job.get("requires_minimum", 1)
+			rules.append(rule)
+	return rules
 
 static func get_periodic_cost_rules() -> Array[Dictionary]:
 	return [
