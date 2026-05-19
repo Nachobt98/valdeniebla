@@ -148,7 +148,7 @@ func create_resource_strip() -> void:
 	if resource_strip != null:
 		return
 	top_stats_label.visible = false
-	var top_bar_content: HBoxContainer = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent
+	var top_bar_content: BoxContainer = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent
 	resource_strip = HBoxContainer.new()
 	resource_strip.name = "ResourceIconStrip"
 	resource_strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
