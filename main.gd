@@ -461,6 +461,9 @@ func get_management_panel_text() -> String:
 		text += "\nPuedes cambiar la prioridad al inicio del mes.\n"
 	else:
 		text += "\nLa prioridad se podrá cambiar al comenzar el próximo mes.\n"
+	text += "\n[b]Oficios activos[/b]\n"
+	for line: String in village_state.get_job_summary_lines():
+		text += "%s\n" % line
 	text += "\n[b]Recursos[/b]\n"
 	for resource_name: String in ResourceDatabase.get_resource_order():
 		text += "%s: %d\n" % [String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name)), village_state.get_resource(resource_name)]
