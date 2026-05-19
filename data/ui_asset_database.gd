@@ -10,6 +10,18 @@ static func get_resource_icon_paths() -> Dictionary:
 		"seguridad": "res://assets/ui/icons/resources/icon_security.svg"
 	}
 
+static func get_portrait_paths() -> Dictionary:
+	return {
+		"aldric": "res://assets/characters/portraits/main/portrait_aldric.svg",
+		"gareth": "res://assets/characters/portraits/main/portrait_gareth.svg",
+		"mara": "res://assets/characters/portraits/main/portrait_mara.svg",
+		"elowen": "res://assets/characters/portraits/main/portrait_elowen.svg",
+		"oren": "res://assets/characters/portraits/main/portrait_oren.svg",
+		"tomas": "res://assets/characters/portraits/main/portrait_tomas.svg",
+		"bran": "res://assets/characters/portraits/main/portrait_bran.svg",
+		"lysa": "res://assets/characters/portraits/main/portrait_lysa.svg"
+	}
+
 static func get_panel_asset_paths() -> Dictionary:
 	return {
 		"dark_parchment": "res://assets/ui/panels/panel_dark_parchment.svg"
