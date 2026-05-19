@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="22" fill="#1f2224"/>
+  <circle cx="128" cy="108" r="51" fill="#b47b58"/>
+  <path d="M72 226c8-45 33-73 56-73s48 28 56 73H72z" fill="#344152"/>
+  <path d="M83 88c18-36 75-37 92 0-28-12-60-12-92 0z" fill="#4b382d"/>
+  <path d="M84 183h88v43H84z" fill="#3d4c60"/>
+  <path d="M101 178h54" stroke="#bfa46a" stroke-width="10" stroke-linecap="round" opacity="0.85"/>
+  <path d="M91 131c20-7 54-7 74 0" stroke="#6a3d2d" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="99" cy="108" r="5" fill="#201513"/><circle cx="157" cy="108" r="5" fill="#201513"/>
+  <text x="128" y="241" font-size="22" text-anchor="middle" fill="#e7d2a1" font-family="serif">Oren</text>
+</svg>

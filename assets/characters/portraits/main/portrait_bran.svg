@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="22" fill="#222018"/>
+  <circle cx="128" cy="108" r="53" fill="#b98257"/>
+  <path d="M66 228c9-50 36-79 62-79s53 29 62 79H66z" fill="#594127"/>
+  <path d="M79 89c20-34 78-34 98 0-33-12-65-12-98 0z" fill="#5b3c24"/>
+  <path d="M77 180h102v48H77z" fill="#6a4a2d"/>
+  <path d="M70 190h116" stroke="#a8753b" stroke-width="13" opacity="0.75"/>
+  <path d="M90 133c20 10 55 10 76 0" stroke="#6b3b28" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="98" cy="108" r="5" fill="#201513"/><circle cx="158" cy="108" r="5" fill="#201513"/>
+  <text x="128" y="241" font-size="22" text-anchor="middle" fill="#e7d2a1" font-family="serif">Bran</text>
+</svg>
