@@ -644,7 +644,8 @@ func update_npc_panel() -> void:
 	if not npc_info_label.visible:
 		return
 	var npc: Dictionary = village_state.npcs[selected_npc_id]
-	var text := "[font_size=23][b]%s[/b][/font_size]\n%d años — %s\n[i]%s[/i]\n\n" % [
+	var text := get_npc_portrait_bbcode(selected_npc_id)
+	text += "[font_size=23][b]%s[/b][/font_size]\n%d años — %s\n[i]%s[/i]\n\n" % [
 		npc["name"],
 		int(npc["age"]),
 		npc["profession"],
@@ -655,6 +656,12 @@ func update_npc_panel() -> void:
 	text += "[b]Estado[/b]\n%s\n\n" % format_dictionary(npc["state"])
 	text += "[b]Relaciones[/b]\n%s" % format_relationships(selected_npc_id)
 	npc_info_label.text = text
+
+func get_npc_portrait_bbcode(npc_id: String) -> String:
+	var portrait_path := String(UiAssetDatabase.get_portrait_paths().get(npc_id, ""))
+	if portrait_path == "":
+		return ""
+	return "[center][img=190x190]%s[/img][/center]\n" % portrait_path
 
 func format_dictionary(values: Dictionary) -> String:
 	var chunks: Array[String] = []
