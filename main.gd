@@ -565,11 +565,16 @@ func show_chronicle_panel() -> void:
 
 func show_management_panel() -> void:
 	show_context("Gestión", get_management_panel_text(), false)
+	context_text_label.scroll_active = true
+	context_text_label.fit_content = false
+	context_text_label.custom_minimum_size = Vector2(380, 430)
+	context_text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if village_state.is_start_of_month():
 		for strategy_id: String in MonthlyStrategyDatabase.get_strategy_order():
 			var strategy_name := MonthlyStrategyDatabase.get_strategy_name(strategy_id)
 			var is_current := strategy_id == village_state.current_strategy_id
-			add_context_button(strategy_name if not is_current else "✓ %s" % strategy_name, func(id := strategy_id): set_monthly_strategy(id), is_current)
+			var button := add_context_button(strategy_name if not is_current else "✓ %s" % strategy_name, func(id := strategy_id): set_monthly_strategy(id), is_current)
+			button.custom_minimum_size = Vector2(0, 34)
 
 func set_monthly_strategy(strategy_id: String) -> void:
 	if not village_state.is_start_of_month():
