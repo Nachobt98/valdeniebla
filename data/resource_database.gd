@@ -32,6 +32,7 @@ static func get_daily_production_rules() -> Array[Dictionary]:
 		for effect: Dictionary in job.get("daily_effects", []):
 			var rule := effect.duplicate(true)
 			rule["description"] = job.get("description", "")
+			rule["workers"] = job.get("workers", [])
 			if job.has("requires_resource"):
 				rule["requires_resource"] = job["requires_resource"]
 				rule["requires_minimum"] = job.get("requires_minimum", 1)
