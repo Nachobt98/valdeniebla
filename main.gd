@@ -7,7 +7,6 @@ const BuildingDatabase = preload("res://data/building_database.gd")
 const MonthlyStrategyDatabase = preload("res://data/monthly_strategy_database.gd")
 const DecisionEventDatabase = preload("res://data/decision_event_database.gd")
 const UiAssetDatabase = preload("res://data/ui_asset_database.gd")
-const UiTextFormatter = preload("res://scripts/ui_text_formatter.gd")
 const VillageState = preload("res://scripts/village_state.gd")
 const EventSystem = preload("res://scripts/event_system.gd")
 const DiarySystem = preload("res://scripts/diary_system.gd")
@@ -17,6 +16,7 @@ const EVENT_FEED_LIFETIME := 5.0
 const EVENT_FEED_FADE_TIME := 1.25
 const MAX_VISIBLE_EVENT_FEED_MESSAGES := 4
 const DECISION_EVENT_CHANCE := 0.35
+const NPC_STATE_BAR_SEGMENTS := 12
 
 var selected_npc_id: String = "aldric"
 var village_state := VillageState.new()
@@ -641,20 +641,81 @@ func format_string_list(items: Array, empty_text: String) -> String:
 		chunks.append("• %s" % item)
 	return "\n".join(chunks)
 
+func format_npc_section(title: String) -> String:
+	return "\n[color=#d8c28a][b]%s[/b][/color]\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n" % title
+
+func format_npc_portrait(path: String) -> String:
+	if path == "":
+		return ""
+	return "[center][img=190x190]%s[/img][/center]\n" % path
+
+func format_npc_header(name: String, age: int, profession: String, location: String) -> String:
+	return "[center][font_size=25][color=#f0dfb2][b]%s[/b][/color][/font_size]\n[color=#cdbf9c]%d años · %s[/color]\n[i][color=#b59d70]%s[/color][/i][/center]\n" % [name, age, profession, location]
+
+func format_trait_chips(traits: Array) -> String:
+	var chips: Array[String] = []
+	for trait_name in traits:
+		chips.append("[color=#e5d09d]‹ %s ›[/color]" % String(trait_name))
+	return "  ".join(chips)
+
+func format_stats_block(stats: Dictionary) -> String:
+	var chunks: Array[String] = []
+	for key in stats.keys():
+		chunks.append("[color=#b7a77e]%s[/color] [color=#f0dfb2]%d[/color]" % [String(key).capitalize(), int(stats[key])])
+	return "  ·  ".join(chunks)
+
+func format_state_block(state: Dictionary) -> String:
+	var text := ""
+	text += format_state_line("Salud", int(state.get("salud", 0)), false)
+	text += format_state_line("Ánimo", int(state.get("ánimo", 0)), false)
+	text += format_state_line("Estrés", int(state.get("estrés", 0)), true)
+	return text
+
+func format_state_line(label: String, value: int, inverted: bool) -> String:
+	var color := get_state_color(value, inverted)
+	return "%s  [color=%s]%s[/color]  [color=#f0dfb2]%d[/color]/100\n" % [label, color, make_state_bar(value), value]
+
+func make_state_bar(value: int) -> String:
+	var filled := int(round(clamp(value, 0, 100) / 100.0 * NPC_STATE_BAR_SEGMENTS))
+	var empty := NPC_STATE_BAR_SEGMENTS - filled
+	return "█".repeat(filled) + "░".repeat(empty)
+
+func get_state_color(value: int, inverted: bool) -> String:
+	if inverted:
+		if value >= 70:
+			return "#a33b35"
+		if value >= 45:
+			return "#d09347"
+		return "#8aac73"
+	if value <= 30:
+		return "#a33b35"
+	if value <= 55:
+		return "#d09347"
+	return "#8aac73"
+
+func format_relationship_line(name: String, value: int) -> String:
+	var color := "#cdbf9c"
+	if value >= 15:
+		color = "#8aac73"
+	elif value <= -10:
+		color = "#d09347"
+	var sign := "+" if value > 0 else ""
+	return "[color=#b7a77e]%s[/color] [color=%s]%s%d[/color]" % [name, color, sign, value]
+
 func update_npc_panel() -> void:
 	if not npc_info_label.visible:
 		return
 	var npc: Dictionary = village_state.npcs[selected_npc_id]
 	var portrait_path := String(UiAssetDatabase.get_portrait_paths().get(selected_npc_id, ""))
-	var text := UiTextFormatter.portrait(portrait_path)
-	text += UiTextFormatter.header(npc["name"], int(npc["age"]), npc["profession"], npc["location"])
-	text += UiTextFormatter.section("Rasgos")
-	text += UiTextFormatter.trait_chips(npc["traits"]) + "\n"
-	text += UiTextFormatter.section("Habilidades")
-	text += UiTextFormatter.stats_block(npc["stats"]) + "\n"
-	text += UiTextFormatter.section("Estado")
-	text += UiTextFormatter.state_block(npc["state"])
-	text += UiTextFormatter.section("Relaciones")
+	var text := format_npc_portrait(portrait_path)
+	text += format_npc_header(npc["name"], int(npc["age"]), npc["profession"], npc["location"])
+	text += format_npc_section("Rasgos")
+	text += format_trait_chips(npc["traits"]) + "\n"
+	text += format_npc_section("Habilidades")
+	text += format_stats_block(npc["stats"]) + "\n"
+	text += format_npc_section("Estado")
+	text += format_state_block(npc["state"])
+	text += format_npc_section("Relaciones")
 	text += format_relationships(selected_npc_id)
 	npc_info_label.text = text
 
@@ -662,7 +723,7 @@ func get_npc_portrait_bbcode(npc_id: String) -> String:
 	var portrait_path := String(UiAssetDatabase.get_portrait_paths().get(npc_id, ""))
 	if portrait_path == "":
 		return ""
-	return UiTextFormatter.portrait(portrait_path)
+	return format_npc_portrait(portrait_path)
 
 func format_dictionary(values: Dictionary) -> String:
 	var chunks: Array[String] = []
@@ -676,5 +737,5 @@ func format_relationships(npc_id: String) -> String:
 	for other_id in village_state.npc_order:
 		if other_id == npc_id:
 			continue
-		chunks.append(UiTextFormatter.relationship_line(village_state.npcs[other_id]["name"], int(relationships.get(other_id, 0))))
+		chunks.append(format_relationship_line(village_state.npcs[other_id]["name"], int(relationships.get(other_id, 0))))
 	return "\n".join(chunks)

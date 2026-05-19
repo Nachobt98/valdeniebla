@@ -15,8 +15,8 @@ static func header(name: String, age: int, profession: String, location: String)
 
 static func trait_chips(traits: Array) -> String:
 	var chips := PackedStringArray()
-	for trait in traits:
-		chips.append("[color=#e5d09d]‹ %s ›[/color]" % String(trait))
+	for trait_name in traits:
+		chips.append("[color=#e5d09d]‹ %s ›[/color]" % String(trait_name))
 	return "  ".join(chips)
 
 static func stats_block(stats: Dictionary) -> String:
