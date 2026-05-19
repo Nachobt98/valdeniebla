@@ -3,6 +3,8 @@ extends Control
 const NPCDatabase = preload("res://data/npc_database.gd")
 const EventDatabase = preload("res://data/event_database.gd")
 const ResourceDatabase = preload("res://data/resource_database.gd")
+const MonthlyStrategyDatabase = preload("res://data/monthly_strategy_database.gd")
+const DecisionEventDatabase = preload("res://data/decision_event_database.gd")
 const VillageState = preload("res://scripts/village_state.gd")
 const EventSystem = preload("res://scripts/event_system.gd")
 const DiarySystem = preload("res://scripts/diary_system.gd")
@@ -11,6 +13,7 @@ const DAY_TIMES := ["Mañana", "Tarde"]
 const EVENT_FEED_LIFETIME := 5.0
 const EVENT_FEED_FADE_TIME := 1.25
 const MAX_VISIBLE_EVENT_FEED_MESSAGES := 4
+const DECISION_EVENT_CHANCE := 0.35
 
 var selected_npc_id: String = "aldric"
 var village_state := VillageState.new()
@@ -19,6 +22,7 @@ var diary_system := DiarySystem.new()
 var event_feed_panel: PanelContainer
 var event_feed_container: VBoxContainer
 var event_feed_empty_label: RichTextLabel
+var dynamic_context_buttons: Array[Button] = []
 
 @onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TitleLabel
 @onready var top_stats_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TopStatsLabel
@@ -27,6 +31,7 @@ var event_feed_empty_label: RichTextLabel
 
 @onready var context_panel: PanelContainer = $RootMargin/RootLayout/GameArea/ContextPanel
 @onready var context_title_label: Label = $RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent/ContextHeader/ContextTitleLabel
+@onready var context_content: VBoxContainer = $RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent
 @onready var context_text_label: RichTextLabel = $RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent/ContextTextLabel
 @onready var npc_list: ItemList = $RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent/NPCList
 @onready var npc_info_label: RichTextLabel = $RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent/NPCInfoLabel
@@ -47,7 +52,12 @@ var event_feed_empty_label: RichTextLabel
 @onready var pastures_button: Button = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/PasturesButton
 
 func _ready() -> void:
-	village_state.setup(NPCDatabase.get_npc_order(), NPCDatabase.get_initial_npcs(), ResourceDatabase.get_initial_resources())
+	village_state.setup(
+		NPCDatabase.get_npc_order(),
+		NPCDatabase.get_initial_npcs(),
+		ResourceDatabase.get_initial_resources(),
+		MonthlyStrategyDatabase.get_default_strategy_id()
+	)
 	event_system.setup(EventDatabase.get_events())
 	diary_system.setup_initial_entry()
 	populate_npc_list()
@@ -159,8 +169,12 @@ func _on_close_context_pressed() -> void:
 	context_panel.visible = false
 
 func _on_advance_day_pressed() -> void:
+	if village_state.has_pending_decision():
+		show_decision_panel()
+		add_event_feed_entry("Decisión pendiente", {"location": "Aldea", "title": "Resuelve la decisión antes de avanzar"})
+		return
 	village_state.advance_day()
-	village_state.apply_daily_economy(ResourceDatabase)
+	village_state.apply_daily_economy(ResourceDatabase, MonthlyStrategyDatabase)
 	diary_system.add_daily_economy_entry(village_state)
 	add_event_feed_entry("Balance", {"location": "Aldea", "title": get_daily_resource_feed_summary()})
 	for time_name in DAY_TIMES:
@@ -168,11 +182,51 @@ func _on_advance_day_pressed() -> void:
 		event_system.apply_event(event_data, village_state)
 		diary_system.add_entry(time_name, event_data, village_state)
 		add_event_feed_entry(time_name, event_data)
+	try_spawn_decision_event()
 	update_all_ui()
-	if context_panel.visible and context_title_label.text == "Gestión":
+	refresh_open_context_panel()
+
+func try_spawn_decision_event() -> void:
+	if village_state.has_pending_decision():
+		return
+	if randf() > DECISION_EVENT_CHANCE:
+		return
+	var event_data := pick_decision_event()
+	if event_data.is_empty():
+		return
+	village_state.set_pending_decision(event_data)
+	add_event_feed_entry("Decisión", {"location": event_data.get("location", "Aldea"), "title": event_data.get("title", "Nueva decisión")})
+	show_decision_panel()
+
+func pick_decision_event() -> Dictionary:
+	var candidates: Array[Dictionary] = []
+	var total_weight := 0.0
+	for event_data: Dictionary in DecisionEventDatabase.get_decision_events():
+		var cooldown_days: int = int(event_data.get("cooldown_days", 0))
+		if village_state.days_since_decision_event(event_data.get("id", "")) < cooldown_days:
+			continue
+		var weight := float(event_data.get("weight", 1.0))
+		candidates.append({"event": event_data, "weight": weight})
+		total_weight += weight
+	if candidates.is_empty():
+		return {}
+	var roll := randf() * total_weight
+	var cursor := 0.0
+	for candidate: Dictionary in candidates:
+		cursor += float(candidate["weight"])
+		if roll <= cursor:
+			return candidate["event"]
+	return candidates[candidates.size() - 1]["event"]
+
+func refresh_open_context_panel() -> void:
+	if not context_panel.visible:
+		return
+	if context_title_label.text == "Gestión":
 		show_management_panel()
-	elif context_panel.visible and context_title_label.text == "Crónica":
+	elif context_title_label.text == "Crónica":
 		show_chronicle_panel()
+	elif context_title_label.text == "Decisión":
+		show_decision_panel()
 
 func get_daily_resource_feed_summary() -> String:
 	var chunks: Array[String] = []
@@ -245,10 +299,12 @@ func update_all_ui() -> void:
 		update_npc_panel()
 
 func update_title() -> void:
-	title_label.text = "Valdeniebla — %s, Año %d — Día %d" % [
+	title_label.text = "Valdeniebla — %s, Año %d — Mes %d, Día %d/%d" % [
 		village_state.season,
 		village_state.year,
-		village_state.day
+		village_state.month,
+		village_state.day_of_month,
+		village_state.DAYS_PER_MONTH
 	]
 	top_stats_label.text = "Comida %d · Madera %d · Hierro %d · Medicina %d · Moral %d · Seguridad %d" % [
 		village_state.get_resource("comida"),
@@ -262,16 +318,23 @@ func update_title() -> void:
 func update_map_status() -> void:
 	var average_mood := village_state.get_average_state("ánimo")
 	var average_stress := village_state.get_average_state("estrés")
-	map_status_label.text = "[center][b]Pulso de la aldea[/b]\nÁnimo medio: %d/100 · Estrés medio: %d/100 · Habitantes: %d\nComida: %d · Moral: %d · Seguridad: %d[/center]" % [
+	map_status_label.text = "[center][b]Pulso de la aldea[/b]\nÁnimo medio: %d/100 · Estrés medio: %d/100 · Habitantes: %d\nPrioridad mensual: %s · Comida: %d · Seguridad: %d[/center]" % [
 		average_mood,
 		average_stress,
 		village_state.npc_order.size(),
+		MonthlyStrategyDatabase.get_strategy_name(village_state.current_strategy_id),
 		village_state.get_resource("comida"),
-		village_state.get_resource("moral"),
 		village_state.get_resource("seguridad")
 	]
 
+func clear_dynamic_context_buttons() -> void:
+	for button: Button in dynamic_context_buttons:
+		if is_instance_valid(button):
+			button.queue_free()
+	dynamic_context_buttons.clear()
+
 func reset_context_text_layout() -> void:
+	clear_dynamic_context_buttons()
 	context_text_label.scroll_active = false
 	context_text_label.fit_content = true
 	context_text_label.custom_minimum_size = Vector2(320, 118)
@@ -290,6 +353,16 @@ func show_context(title: String, body: String, show_npcs: bool = false) -> void:
 		npc_list.ensure_current_is_visible()
 		update_npc_panel()
 
+func add_context_button(text: String, callback: Callable, disabled: bool = false) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.disabled = disabled
+	button.custom_minimum_size = Vector2(0, 38)
+	button.pressed.connect(callback)
+	context_content.add_child(button)
+	dynamic_context_buttons.append(button)
+	return button
+
 func show_people_panel() -> void:
 	show_context(
 		"Habitantes",
@@ -298,6 +371,7 @@ func show_people_panel() -> void:
 	)
 
 func show_chronicle_panel() -> void:
+	clear_dynamic_context_buttons()
 	context_panel.visible = true
 	context_title_label.text = "Crónica"
 	context_text_label.visible = true
@@ -311,16 +385,31 @@ func show_chronicle_panel() -> void:
 
 func show_management_panel() -> void:
 	show_context("Gestión", get_management_panel_text(), false)
+	if village_state.is_start_of_month():
+		for strategy_id: String in MonthlyStrategyDatabase.get_strategy_order():
+			var strategy_name := MonthlyStrategyDatabase.get_strategy_name(strategy_id)
+			var is_current := strategy_id == village_state.current_strategy_id
+			add_context_button(strategy_name if not is_current else "✓ %s" % strategy_name, func(id := strategy_id): set_monthly_strategy(id), is_current)
+
+func set_monthly_strategy(strategy_id: String) -> void:
+	if not village_state.is_start_of_month():
+		return
+	village_state.set_monthly_strategy(strategy_id)
+	add_event_feed_entry("Estrategia", {"location": "Casa comunal", "title": "Prioridad mensual: %s" % MonthlyStrategyDatabase.get_strategy_name(strategy_id)})
+	show_management_panel()
+	update_all_ui()
 
 func get_management_panel_text() -> String:
-	var text := "[b]Recursos[/b]\n"
+	var strategy := MonthlyStrategyDatabase.get_strategy(village_state.current_strategy_id)
+	var text := "[b]Calendario[/b]\nMes %d · Día %d/%d\n\n" % [village_state.month, village_state.day_of_month, village_state.DAYS_PER_MONTH]
+	text += "[b]Prioridad mensual[/b]\n%s\n[i]%s[/i]\n" % [strategy.get("name", "Equilibrada"), strategy.get("description", "")]
+	if village_state.is_start_of_month():
+		text += "\nPuedes cambiar la prioridad al inicio del mes.\n"
+	else:
+		text += "\nLa prioridad se podrá cambiar al comenzar el próximo mes.\n"
+	text += "\n[b]Recursos[/b]\n"
 	for resource_name: String in ResourceDatabase.get_resource_order():
 		text += "%s: %d\n" % [String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name)), village_state.get_resource(resource_name)]
-	text += "\n[b]Producción diaria[/b]\n"
-	for rule: Dictionary in ResourceDatabase.get_daily_production_rules():
-		text += "• %s: %s %+d\n" % [String(rule["source"]), String(rule["resource"]).capitalize(), int(rule["delta"])]
-	text += "\n[b]Consumo[/b]\n"
-	text += "• Habitantes: Comida -%d/día\n" % village_state.npc_order.size()
 	text += "\n[b]Último balance[/b]\n"
 	if village_state.last_daily_resource_changes.is_empty():
 		text += "Aún no hay balance diario."
@@ -328,6 +417,42 @@ func get_management_panel_text() -> String:
 		for change: Dictionary in village_state.last_daily_resource_changes:
 			text += "• %s %+d (%s)\n" % [String(change["resource"]).capitalize(), int(change["delta"]), String(change.get("source", "aldea"))]
 	return text
+
+func show_decision_panel() -> void:
+	if not village_state.has_pending_decision():
+		return
+	var event_data: Dictionary = village_state.pending_decision_event
+	show_context("Decisión", "[b]%s[/b]\n[i]%s[/i]\n\n%s\n\nElige una respuesta:" % [event_data.get("title", "Decisión"), event_data.get("location", "Aldea"), event_data.get("description", "")], false)
+	for option_index in range(event_data.get("options", []).size()):
+		var option_data: Dictionary = event_data["options"][option_index]
+		var requirements: Dictionary = option_data.get("requirements", {})
+		var can_pay := village_state.can_pay_requirements(requirements)
+		var label := String(option_data.get("label", "Opción"))
+		if not requirements.is_empty():
+			label += " (%s)" % format_requirements(requirements)
+		add_context_button(label, func(index := option_index): resolve_decision_option(index), not can_pay)
+
+func resolve_decision_option(option_index: int) -> void:
+	if not village_state.has_pending_decision():
+		return
+	var event_data: Dictionary = village_state.pending_decision_event
+	var options: Array = event_data.get("options", [])
+	if option_index < 0 or option_index >= options.size():
+		return
+	var option_data: Dictionary = options[option_index]
+	if not village_state.can_pay_requirements(option_data.get("requirements", {})):
+		return
+	village_state.apply_decision_option(option_data)
+	diary_system.add_decision_entry(event_data, option_data, village_state)
+	add_event_feed_entry("Decisión", {"location": event_data.get("location", "Aldea"), "title": option_data.get("result_text", "Decisión resuelta")})
+	update_all_ui()
+	show_chronicle_panel()
+
+func format_requirements(requirements: Dictionary) -> String:
+	var chunks: Array[String] = []
+	for resource_name: String in requirements.keys():
+		chunks.append("%s %d" % [String(resource_name).capitalize(), int(requirements[resource_name])])
+	return ", ".join(chunks)
 
 func show_quests_panel() -> void:
 	show_context(
