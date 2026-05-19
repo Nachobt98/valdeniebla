@@ -15,6 +15,10 @@ run/main_scene="uid://cx2gg7f7u2nma"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+McpBridgeGame="*res://mcp_bridge_game.gd"
+
 [display]
 
 window/size/viewport_width=1920
@@ -24,6 +28,10 @@ window/size/window_width_override=1920
 window/size/window_height_override=1080
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/mcp_bridge/plugin.cfg")
 
 [physics]
 
