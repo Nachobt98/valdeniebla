@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="22" fill="#1d2321"/>
+  <circle cx="128" cy="108" r="50" fill="#b98464"/>
+  <path d="M72 226c8-45 33-73 56-73s48 28 56 73H72z" fill="#3f5945"/>
+  <path d="M82 91c13-38 80-43 96 3-31-16-64-14-96-3z" fill="#514639"/>
+  <path d="M80 178h96v48H80z" fill="#4e6a51"/>
+  <path d="M92 188c16 12 56 12 72 0" stroke="#a9c18b" stroke-width="9" stroke-linecap="round"/>
+  <path d="M58 188c28-16 33-39 43-68" stroke="#7da56f" stroke-width="7" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="99" cy="108" r="5" fill="#1b1714"/><circle cx="157" cy="108" r="5" fill="#1b1714"/>
+  <text x="128" y="241" font-size="22" text-anchor="middle" fill="#e7d2a1" font-family="serif">Elowen</text>
+</svg>
