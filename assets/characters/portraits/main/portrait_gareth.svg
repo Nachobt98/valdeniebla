@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="22" fill="#20201d"/>
+  <circle cx="128" cy="106" r="56" fill="#a8704e"/>
+  <path d="M64 230c8-54 38-83 64-83s56 29 64 83H64z" fill="#40322a"/>
+  <path d="M80 82c20-34 78-36 96 2-31-13-62-11-96-2z" fill="#3a302b"/>
+  <path d="M91 129c18 32 55 32 74 0v34c-19 22-56 22-74 0v-34z" fill="#4f4038"/>
+  <path d="M79 183h98l-14 47H93l-14-47z" fill="#3b2b22"/>
+  <path d="M75 194h106" stroke="#7d5d39" stroke-width="12" opacity="0.8"/>
+  <circle cx="99" cy="105" r="5" fill="#211613"/><circle cx="157" cy="105" r="5" fill="#211613"/>
+  <text x="128" y="241" font-size="22" text-anchor="middle" fill="#e7d2a1" font-family="serif">Gareth</text>
+</svg>
