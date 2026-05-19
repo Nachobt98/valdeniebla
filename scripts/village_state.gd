@@ -1,30 +1,54 @@
 extends RefCounted
 
+const DAYS_PER_MONTH := 14
+
 var day: int = 1
+var day_of_month: int = 1
+var month: int = 1
 var season: String = "Primavera"
 var year: int = 1
+var current_strategy_id: String = "balanced"
+var pending_decision_event: Dictionary = {}
+var decision_event_history: Dictionary = {}
 var npc_order: Array[String] = []
 var npcs: Dictionary = {}
 var event_history: Array[Dictionary] = []
 var resources: Dictionary = {}
 var last_daily_resource_changes: Array[Dictionary] = []
 
-func setup(initial_npc_order: Array[String], initial_npcs: Dictionary, initial_resources: Dictionary = {}) -> void:
+func setup(initial_npc_order: Array[String], initial_npcs: Dictionary, initial_resources: Dictionary = {}, initial_strategy_id: String = "balanced") -> void:
 	npc_order = initial_npc_order.duplicate(true)
 	npcs = initial_npcs.duplicate(true)
 	resources = initial_resources.duplicate(true)
+	current_strategy_id = initial_strategy_id
 	event_history.clear()
+	decision_event_history.clear()
+	pending_decision_event.clear()
 	last_daily_resource_changes.clear()
 
 func advance_day() -> void:
 	day += 1
+	day_of_month += 1
+	if day_of_month > DAYS_PER_MONTH:
+		day_of_month = 1
+		month += 1
 	last_daily_resource_changes.clear()
+
+func is_start_of_month() -> bool:
+	return day_of_month == 1
+
+func set_monthly_strategy(strategy_id: String) -> void:
+	current_strategy_id = strategy_id
 
 func change_stat(npc_id: String, stat_name: String, delta: int) -> void:
 	var stats: Dictionary = npcs[npc_id]["stats"]
 	stats[stat_name] = int(stats.get(stat_name, 0)) + delta
 
 func change_state(npc_id: String, state_name: String, delta: int) -> void:
+	if npc_id == "all":
+		for target_id: String in npc_order:
+			change_state(target_id, state_name, delta)
+		return
 	var state: Dictionary = npcs[npc_id]["state"]
 	state[state_name] = int(clamp(int(state.get(state_name, 0)) + delta, 0, 100))
 
@@ -40,7 +64,7 @@ func change_resource(resource_name: String, delta: int, source: String = "") -> 
 func get_resource(resource_name: String) -> int:
 	return int(resources.get(resource_name, 0))
 
-func apply_daily_economy(resource_database) -> void:
+func apply_daily_economy(resource_database, strategy_database = null) -> void:
 	for rule: Dictionary in resource_database.get_daily_production_rules():
 		if can_apply_resource_rule(rule):
 			change_resource(String(rule["resource"]), int(rule["delta"]), String(rule["source"]))
@@ -49,7 +73,19 @@ func apply_daily_economy(resource_database) -> void:
 		var every_days: int = int(rule.get("every_days", 1))
 		if every_days > 0 and day % every_days == 0:
 			change_resource(String(rule["resource"]), int(rule["delta"]), String(rule["source"]))
+	if strategy_database != null:
+		apply_monthly_strategy_effects(strategy_database)
 	apply_low_resource_pressure()
+
+func apply_monthly_strategy_effects(strategy_database) -> void:
+	var strategy: Dictionary = strategy_database.get_strategy(current_strategy_id)
+	var resource_modifiers: Dictionary = strategy.get("resource_modifiers", {})
+	for resource_name: String in resource_modifiers.keys():
+		change_resource(resource_name, int(resource_modifiers[resource_name]), "Prioridad: %s" % strategy.get("name", "Equilibrada"))
+	var state_modifiers: Dictionary = strategy.get("state_modifiers", {})
+	for state_name: String in state_modifiers.keys():
+		for npc_id: String in npc_order:
+			change_state(npc_id, state_name, int(state_modifiers[state_name]))
 
 func can_apply_resource_rule(rule: Dictionary) -> bool:
 	if rule.has("requires_resource"):
@@ -72,6 +108,39 @@ func apply_low_resource_pressure() -> void:
 			change_state(npc_id, "estrés", 1)
 	if get_resource("seguridad") <= 20:
 		change_resource("moral", -1, "Inseguridad")
+
+func has_pending_decision() -> bool:
+	return not pending_decision_event.is_empty()
+
+func set_pending_decision(event_data: Dictionary) -> void:
+	pending_decision_event = event_data.duplicate(true)
+
+func clear_pending_decision() -> void:
+	pending_decision_event.clear()
+
+func can_pay_requirements(requirements: Dictionary) -> bool:
+	for resource_name: String in requirements.keys():
+		if get_resource(resource_name) < int(requirements[resource_name]):
+			return false
+	return true
+
+func apply_decision_option(option_data: Dictionary) -> void:
+	for effect: Dictionary in option_data.get("effects", []):
+		if effect.has("resource"):
+			change_resource(effect["resource"], int(effect["delta"]), pending_decision_event.get("title", "Decisión"))
+		elif effect.has("state"):
+			change_state(effect.get("target", "all"), effect["state"], int(effect["delta"]))
+		elif effect.has("relation_delta"):
+			change_relation(effect["from"], effect["to"], int(effect["relation_delta"]))
+	var event_id: String = String(pending_decision_event.get("id", ""))
+	if event_id != "":
+		decision_event_history[event_id] = day
+	clear_pending_decision()
+
+func days_since_decision_event(event_id: String) -> int:
+	if not decision_event_history.has(event_id):
+		return 100000
+	return day - int(decision_event_history[event_id])
 
 func get_relation(from_id: String, to_id: String) -> int:
 	return int(npcs[from_id]["relationships"].get(to_id, 0))
