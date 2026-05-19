@@ -33,6 +33,19 @@ func add_daily_economy_entry(village_state) -> void:
 	]
 	diary_history.append(entry)
 
+func add_decision_entry(event_data: Dictionary, option_data: Dictionary, village_state) -> void:
+	var consequences := format_effects(option_data.get("effects", []), village_state)
+	var entry := "[font_size=20][b]Día %d — Decisión, %s[/b][/font_size]\n[i]%s[/i]\n%s\n\n[b]Elección[/b]\n%s\n\n[b]Resultado[/b]\n%s\n\n[b]Consecuencias[/b]\n[color=#b8a890]%s[/color]" % [
+		village_state.day,
+		event_data.get("location", "Aldea"),
+		event_data.get("title", "Decisión"),
+		event_data.get("description", ""),
+		option_data.get("label", "Opción"),
+		option_data.get("result_text", "La aldea asume las consecuencias."),
+		consequences
+	]
+	diary_history.append(entry)
+
 func get_recent_entries(max_entries: int = MAX_DIARY_ENTRIES) -> Array[String]:
 	return diary_history.slice(max(0, diary_history.size() - max_entries), diary_history.size())
 
@@ -48,7 +61,12 @@ func format_effects(effects: Array, village_state) -> String:
 		if effect.has("stat"):
 			chunks.append("• %s %s %+d" % [village_state.npcs[effect["target"]]["name"], effect["stat"].capitalize(), int(effect["delta"])])
 		elif effect.has("state"):
-			chunks.append("• %s %s %+d" % [village_state.npcs[effect["target"]]["name"], effect["state"].capitalize(), int(effect["delta"])])
+			var target_name := String(effect.get("target", "all"))
+			if target_name == "all":
+				target_name = "Población"
+			elif village_state.npcs.has(target_name):
+				target_name = village_state.npcs[target_name]["name"]
+			chunks.append("• %s %s %+d" % [target_name, effect["state"].capitalize(), int(effect["delta"])])
 		elif effect.has("relation_delta"):
 			chunks.append("• %s → %s %+d" % [village_state.npcs[effect["from"]]["name"], village_state.npcs[effect["to"]]["name"], int(effect["relation_delta"])])
 		elif effect.has("resource"):
