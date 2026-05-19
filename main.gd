@@ -3,6 +3,7 @@ extends Control
 const NPCDatabase = preload("res://data/npc_database.gd")
 const EventDatabase = preload("res://data/event_database.gd")
 const ResourceDatabase = preload("res://data/resource_database.gd")
+const BuildingDatabase = preload("res://data/building_database.gd")
 const MonthlyStrategyDatabase = preload("res://data/monthly_strategy_database.gd")
 const DecisionEventDatabase = preload("res://data/decision_event_database.gd")
 const VillageState = preload("res://scripts/village_state.gd")
@@ -56,7 +57,8 @@ func _ready() -> void:
 		NPCDatabase.get_npc_order(),
 		NPCDatabase.get_initial_npcs(),
 		ResourceDatabase.get_initial_resources(),
-		MonthlyStrategyDatabase.get_default_strategy_id()
+		MonthlyStrategyDatabase.get_default_strategy_id(),
+		BuildingDatabase.get_initial_buildings()
 	)
 	event_system.setup(EventDatabase.get_events())
 	diary_system.setup_initial_entry()
@@ -75,12 +77,12 @@ func connect_signals() -> void:
 	management_button.pressed.connect(show_management_panel)
 	quests_button.pressed.connect(show_quests_panel)
 	build_button.pressed.connect(show_build_panel)
-	forge_button.pressed.connect(func(): show_building_panel("Herrería", "Aldric · Gareth", "Seguridad +1/día si queda hierro. Coste: -1 hierro cada 3 días.", "El yunque marca el pulso material de Valdeniebla."))
-	tavern_button.pressed.connect(func(): show_building_panel("Taberna", "Mara", "Moral +1/día. Más adelante influirá en rumores, visitantes y comercio.", "Aquí la aldea habla antes de saber qué piensa."))
-	well_button.pressed.connect(func(): show_building_panel("Pozo", "Vecinos de paso", "Estabilidad cotidiana. Más adelante afectará salud, reuniones y eventos sociales.", "Todo el mundo acaba pasando por el pozo."))
-	farms_button.pressed.connect(func(): show_building_panel("Granjas", "Bran", "Comida +10/día.", "Si los campos fallan, toda la aldea lo nota."))
-	chapel_button.pressed.connect(func(): show_building_panel("Capilla", "Tomas", "Moral +1/día. Más adelante afectará memoria, mediación y tramas principales.", "Las velas recuerdan más de lo que dicen."))
-	pastures_button.pressed.connect(func(): show_building_panel("Prados", "Lysa", "Comida +3/día. Más adelante aportará vigilancia rural y medicina natural.", "Más allá de los prados empieza lo incierto."))
+	forge_button.pressed.connect(func(): show_building_panel("forge"))
+	tavern_button.pressed.connect(func(): show_building_panel("tavern"))
+	well_button.pressed.connect(func(): show_building_panel("well"))
+	farms_button.pressed.connect(func(): show_building_panel("farms"))
+	chapel_button.pressed.connect(func(): show_building_panel("chapel"))
+	pastures_button.pressed.connect(func(): show_building_panel("pastures"))
 
 func apply_translucent_context_style() -> void:
 	context_panel.custom_minimum_size = Vector2(350, 0)
@@ -462,18 +464,49 @@ func show_quests_panel() -> void:
 	)
 
 func show_build_panel() -> void:
-	show_context(
-		"Construcción",
-		"[b]Edificios futuros[/b]\nHerrería mejorada, almacén, viviendas, empalizada, puesto de mercado y mejoras de producción.\n\nEl mapa debe acabar mostrando el crecimiento visual de la aldea.",
-		false
-	)
+	var text := "[b]Edificios registrados[/b]\n"
+	for building_id: String in BuildingDatabase.get_building_order():
+		var building: Dictionary = village_state.get_building(building_id)
+		text += "• %s · Nivel %d · %s\n" % [building.get("name", building_id), int(building.get("level", 1)), building.get("status", "Sin estado")]
+	text += "\n[b]Construcción real[/b]\nLas mejoras, costes y obras llegan en la siguiente capa. Esta PR solo crea la base de estado de edificios."
+	show_context("Construcción", text, false)
 
-func show_building_panel(building_name: String, people: String, role: String, flavor: String) -> void:
-	show_context(
-		building_name,
-		"[b]Habitantes asociados[/b]\n%s\n\n[b]Función[/b]\n%s\n\n[i]%s[/i]" % [people, role, flavor],
-		false
-	)
+func show_building_panel(building_id: String) -> void:
+	if not village_state.has_building(building_id):
+		show_context("Edificio", "No hay datos registrados para este edificio.", false)
+		return
+	var building: Dictionary = village_state.get_building(building_id)
+	show_context(String(building.get("name", "Edificio")), get_building_panel_text(building), false)
+
+func get_building_panel_text(building: Dictionary) -> String:
+	var text := "[b]Nivel[/b]\n%d\n\n" % int(building.get("level", 1))
+	text += "[b]Estado[/b]\n%s · %d/100\n\n" % [building.get("status", "Sin estado"), int(building.get("condition", 100))]
+	text += "[b]Habitantes asociados[/b]\n%s\n\n" % format_worker_names(building.get("workers", []))
+	text += "[b]Función[/b]\n%s\n\n" % building.get("function", "Sin función registrada.")
+	text += "[b]Producción[/b]\n%s\n\n" % format_string_list(building.get("production", []), "Sin producción directa.")
+	text += "[b]Costes[/b]\n%s\n\n" % format_string_list(building.get("costs", []), "Sin costes actuales.")
+	text += "[b]Riesgos[/b]\n%s\n\n" % format_string_list(building.get("risks", []), "Sin riesgos registrados.")
+	text += "[b]Mejora futura[/b]\n%s" % building.get("future_upgrade", "Sin mejora registrada.")
+	return text
+
+func format_worker_names(worker_ids: Array) -> String:
+	if worker_ids.is_empty():
+		return "Sin habitantes asignados."
+	var names: Array[String] = []
+	for worker_id: String in worker_ids:
+		if village_state.npcs.has(worker_id):
+			names.append(String(village_state.npcs[worker_id]["name"]))
+		else:
+			names.append(worker_id)
+	return ", ".join(names)
+
+func format_string_list(items: Array, empty_text: String) -> String:
+	if items.is_empty():
+		return empty_text
+	var chunks: Array[String] = []
+	for item: String in items:
+		chunks.append("• %s" % item)
+	return "\n".join(chunks)
 
 func update_npc_panel() -> void:
 	if not npc_info_label.visible:
