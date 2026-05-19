@@ -1,6 +1,7 @@
 extends RefCounted
 
 const DAYS_PER_MONTH := 14
+const JobDatabase = preload("res://data/job_database.gd")
 
 var day: int = 1
 var day_of_month: int = 1
@@ -16,6 +17,7 @@ var buildings: Dictionary = {}
 var event_history: Array[Dictionary] = []
 var resources: Dictionary = {}
 var last_daily_resource_changes: Array[Dictionary] = []
+var last_daily_job_summaries: Array[Dictionary] = []
 
 func setup(initial_npc_order: Array[String], initial_npcs: Dictionary, initial_resources: Dictionary = {}, initial_strategy_id: String = "balanced", initial_buildings: Dictionary = {}) -> void:
 	npc_order = initial_npc_order.duplicate(true)
@@ -27,6 +29,7 @@ func setup(initial_npc_order: Array[String], initial_npcs: Dictionary, initial_r
 	decision_event_history.clear()
 	pending_decision_event.clear()
 	last_daily_resource_changes.clear()
+	last_daily_job_summaries.clear()
 
 func advance_day() -> void:
 	day += 1
@@ -35,6 +38,7 @@ func advance_day() -> void:
 		day_of_month = 1
 		month += 1
 	last_daily_resource_changes.clear()
+	last_daily_job_summaries.clear()
 
 func is_start_of_month() -> bool:
 	return day_of_month == 1
@@ -67,6 +71,8 @@ func change_state(npc_id: String, state_name: String, delta: int) -> void:
 		for target_id: String in npc_order:
 			change_state(target_id, state_name, delta)
 		return
+	if not npcs.has(npc_id):
+		return
 	var state: Dictionary = npcs[npc_id]["state"]
 	state[state_name] = int(clamp(int(state.get(state_name, 0)) + delta, 0, 100))
 
@@ -86,6 +92,7 @@ func apply_daily_economy(resource_database, strategy_database = null) -> void:
 	for rule: Dictionary in resource_database.get_daily_production_rules():
 		if can_apply_resource_rule(rule):
 			change_resource(String(rule["resource"]), int(rule["delta"]), String(rule["source"]))
+	apply_daily_job_state_effects()
 	apply_food_consumption()
 	for rule: Dictionary in resource_database.get_periodic_cost_rules():
 		var every_days: int = int(rule.get("every_days", 1))
@@ -94,6 +101,49 @@ func apply_daily_economy(resource_database, strategy_database = null) -> void:
 	if strategy_database != null:
 		apply_monthly_strategy_effects(strategy_database)
 	apply_low_resource_pressure()
+
+func apply_daily_job_state_effects() -> void:
+	for job_id: String in JobDatabase.get_job_order():
+		var job: Dictionary = JobDatabase.get_job(job_id)
+		var status := get_job_status(job)
+		last_daily_job_summaries.append({"job": job.get("name", job_id), "status": status, "workers": get_job_worker_names(job)})
+		if status == "bloqueado":
+			for worker_id: String in job.get("workers", []):
+				change_state(worker_id, "estrés", 2)
+			change_resource("moral", -1, "%s bloqueado" % String(job.get("name", "Oficio")))
+			continue
+		for effect: Dictionary in job.get("state_effects", []):
+			change_state(String(effect.get("target", "all")), String(effect.get("state", "")), int(effect.get("delta", 0)))
+		var stress_delta := int(job.get("stress_delta", 0))
+		if stress_delta != 0:
+			for worker_id: String in job.get("workers", []):
+				change_state(worker_id, "estrés", stress_delta)
+
+func get_job_status(job: Dictionary) -> String:
+	if job.has("requires_resource") and get_resource(String(job.get("requires_resource", ""))) < int(job.get("requires_minimum", 1)):
+		return "bloqueado"
+	for worker_id: String in job.get("workers", []):
+		if not npcs.has(worker_id):
+			return "bloqueado"
+		var state: Dictionary = npcs[worker_id].get("state", {})
+		if int(state.get("salud", 100)) <= 15:
+			return "bloqueado"
+		if int(state.get("estrés", 0)) >= 70 or int(state.get("salud", 100)) <= 35:
+			return "riesgo"
+	return "activo"
+
+func get_job_worker_names(job: Dictionary) -> String:
+	var names: Array[String] = []
+	for worker_id: String in job.get("workers", []):
+		names.append(String(npcs.get(worker_id, {}).get("name", worker_id)))
+	return ", ".join(names)
+
+func get_job_summary_lines() -> Array[String]:
+	var lines: Array[String] = []
+	for job_id: String in JobDatabase.get_job_order():
+		var job: Dictionary = JobDatabase.get_job(job_id)
+		lines.append("• %s — %s — %s" % [String(job.get("name", job_id)), get_job_worker_names(job), get_job_status(job)])
+	return lines
 
 func apply_monthly_strategy_effects(strategy_database) -> void:
 	var strategy: Dictionary = strategy_database.get_strategy(current_strategy_id)
