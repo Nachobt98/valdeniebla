@@ -156,6 +156,13 @@ func apply_monthly_strategy_effects(strategy_database) -> void:
 			change_state(npc_id, state_name, int(state_modifiers[state_name]))
 
 func can_apply_resource_rule(rule: Dictionary) -> bool:
+	if rule.has("workers"):
+		for worker_id: String in rule.get("workers", []):
+			if not npcs.has(worker_id):
+				return false
+			var state: Dictionary = npcs[worker_id].get("state", {})
+			if int(state.get("salud", 100)) <= 15:
+				return false
 	if rule.has("requires_resource"):
 		var required_resource: String = String(rule["requires_resource"])
 		var required_minimum: int = int(rule.get("requires_minimum", 1))
