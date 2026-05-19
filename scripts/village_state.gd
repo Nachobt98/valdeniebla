@@ -12,14 +12,16 @@ var pending_decision_event: Dictionary = {}
 var decision_event_history: Dictionary = {}
 var npc_order: Array[String] = []
 var npcs: Dictionary = {}
+var buildings: Dictionary = {}
 var event_history: Array[Dictionary] = []
 var resources: Dictionary = {}
 var last_daily_resource_changes: Array[Dictionary] = []
 
-func setup(initial_npc_order: Array[String], initial_npcs: Dictionary, initial_resources: Dictionary = {}, initial_strategy_id: String = "balanced") -> void:
+func setup(initial_npc_order: Array[String], initial_npcs: Dictionary, initial_resources: Dictionary = {}, initial_strategy_id: String = "balanced", initial_buildings: Dictionary = {}) -> void:
 	npc_order = initial_npc_order.duplicate(true)
 	npcs = initial_npcs.duplicate(true)
 	resources = initial_resources.duplicate(true)
+	buildings = initial_buildings.duplicate(true)
 	current_strategy_id = initial_strategy_id
 	event_history.clear()
 	decision_event_history.clear()
@@ -39,6 +41,22 @@ func is_start_of_month() -> bool:
 
 func set_monthly_strategy(strategy_id: String) -> void:
 	current_strategy_id = strategy_id
+
+func get_building(building_id: String) -> Dictionary:
+	return buildings.get(building_id, {})
+
+func has_building(building_id: String) -> bool:
+	return buildings.has(building_id)
+
+func change_building_condition(building_id: String, delta: int) -> void:
+	if not buildings.has(building_id):
+		return
+	var building: Dictionary = buildings[building_id]
+	building["condition"] = int(clamp(int(building.get("condition", 100)) + delta, 0, 100))
+	if int(building["condition"]) <= 20:
+		building["status"] = "Dañada"
+	elif int(building["condition"]) <= 60:
+		building["status"] = "Desgastada"
 
 func change_stat(npc_id: String, stat_name: String, delta: int) -> void:
 	var stats: Dictionary = npcs[npc_id]["stats"]
@@ -132,6 +150,8 @@ func apply_decision_option(option_data: Dictionary) -> void:
 			change_state(effect.get("target", "all"), effect["state"], int(effect["delta"]))
 		elif effect.has("relation_delta"):
 			change_relation(effect["from"], effect["to"], int(effect["relation_delta"]))
+		elif effect.has("building"):
+			change_building_condition(effect["building"], int(effect["delta"]))
 	var event_id: String = String(pending_decision_event.get("id", ""))
 	if event_id != "":
 		decision_event_history[event_id] = day
