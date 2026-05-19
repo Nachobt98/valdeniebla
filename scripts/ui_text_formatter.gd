@@ -14,13 +14,13 @@ static func header(name: String, age: int, profession: String, location: String)
 	return "[center][font_size=25][color=#f0dfb2][b]%s[/b][/color][/font_size]\n[color=#cdbf9c]%d años · %s[/color]\n[i][color=#b59d70]%s[/color][/i][/center]\n" % [name, age, profession, location]
 
 static func trait_chips(traits: Array) -> String:
-	var chips: Array[String] = []
+	var chips := PackedStringArray()
 	for trait in traits:
 		chips.append("[color=#e5d09d]‹ %s ›[/color]" % String(trait))
 	return "  ".join(chips)
 
 static func stats_block(stats: Dictionary) -> String:
-	var chunks: Array[String] = []
+	var chunks := PackedStringArray()
 	for key in stats.keys():
 		chunks.append("[color=#b7a77e]%s[/color] [color=#f0dfb2]%d[/color]" % [String(key).capitalize(), int(stats[key])])
 	return "  ·  ".join(chunks)
@@ -55,6 +55,10 @@ static func get_state_color(value: int, inverted: bool) -> String:
 	return "#8aac73"
 
 static func relationship_line(name: String, value: int) -> String:
-	var color := "#8aac73" if value >= 15 else "#d09347" if value <= -10 else "#cdbf9c"
+	var color := "#cdbf9c"
+	if value >= 15:
+		color = "#8aac73"
+	elif value <= -10:
+		color = "#d09347"
 	var sign := "+" if value > 0 else ""
 	return "[color=#b7a77e]%s[/color] [color=%s]%s%d[/color]" % [name, color, sign, value]
