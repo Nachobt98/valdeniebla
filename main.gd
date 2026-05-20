@@ -289,9 +289,9 @@ func make_resource_chip(resource_name: String) -> PanelContainer:
 	icon.custom_minimum_size = Vector2(25, 25)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	var icon_path := String(UiAssetDatabase.get_resource_icon_paths().get(resource_name, ""))
+	var icon_path := String(UiAssetDatabase.get_generated_resource_icon_paths().get(resource_name, ""))
 	if icon_path != "":
-		icon.texture = load(icon_path)
+		icon.texture = UiAssetDatabase.load_texture(icon_path)
 	row.add_child(icon)
 	var text_stack := VBoxContainer.new()
 	text_stack.add_theme_constant_override("separation", -3)

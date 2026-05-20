@@ -5,10 +5,14 @@ signal building_selected(building_id: String, screen_position: Vector2)
 signal npc_selected(npc_id: String, screen_position: Vector2)
 
 const VillageLayoutDatabase = preload("res://data/village_layout_database.gd")
+const UiAssetDatabase = preload("res://data/ui_asset_database.gd")
 
 var buildings := VillageLayoutDatabase.get_building_layouts()
 var paths := VillageLayoutDatabase.get_paths()
 var npc_routines := VillageLayoutDatabase.get_npc_routines()
+var building_textures: Dictionary = {}
+var npc_textures: Dictionary = {}
+var status_icon_textures: Dictionary = {}
 var npc_names: Dictionary = {}
 var selected_building_id := ""
 var selected_npc_id := ""
@@ -32,8 +36,23 @@ const NPC_COLORS := {
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	load_map_asset_textures()
 	resized.connect(func(): queue_redraw())
 	set_process(true)
+
+func load_map_asset_textures() -> void:
+	building_textures = load_texture_dictionary(UiAssetDatabase.get_map_building_asset_paths())
+	npc_textures = load_texture_dictionary(UiAssetDatabase.get_map_npc_sprite_paths())
+	status_icon_textures = load_texture_dictionary(UiAssetDatabase.get_status_icon_paths())
+
+func load_texture_dictionary(paths_by_id: Dictionary) -> Dictionary:
+	var textures := {}
+	for asset_id: String in paths_by_id.keys():
+		var path := String(paths_by_id[asset_id])
+		var texture := UiAssetDatabase.load_texture(path)
+		if texture != null:
+			textures[asset_id] = texture
+	return textures
 
 func set_npcs(npcs: Dictionary) -> void:
 	npc_names.clear()
@@ -188,6 +207,48 @@ func draw_building(building_id: String, layout: Dictionary, viewport: Vector2) -
 	var rect := Rect2(center - footprint * 0.5, footprint)
 	var selected := building_id == selected_building_id
 	var hovered := building_id == hovered_building_id
+	var uses_texture := building_textures.has(building_id)
+	if uses_texture:
+		draw_building_texture(building_id, rect)
+	else:
+		draw_procedural_building(layout, rect)
+	var outline_alpha := 0.32
+	var outline_width := 2.0
+	if selected:
+		outline_alpha = 0.90
+		outline_width = 4.0
+	elif hovered:
+		outline_alpha = 0.78
+		outline_width = 3.0
+	draw_rect(rect, Color(0.81, 0.69, 0.42, outline_alpha), false, outline_width)
+	if not uses_texture:
+		draw_door(rect)
+		draw_windows(rect)
+		draw_building_details(building_id, rect)
+	draw_building_status_marker(building_id, rect)
+	if selected or hovered or not uses_texture:
+		draw_label(center + Vector2(0.0, rect.size.y * 0.58), String(layout["label"]), selected)
+	if hovered:
+		draw_rect(rect.grow(8.0), Color(0.95, 0.78, 0.38, 0.22), false, 3.0)
+	if building_id == "well":
+		draw_circle(center, minf(footprint.x, footprint.y) * 0.48, Color(0.09, 0.16, 0.17, 1.0))
+		draw_circle(center, minf(footprint.x, footprint.y) * 0.28, Color(0.17, 0.31, 0.33, 0.9))
+	if building_id == "pastures":
+		draw_fence(rect.grow(28.0))
+	if building_id == "chapel":
+		draw_chapel_yard(rect)
+
+func draw_building_texture(building_id: String, rect: Rect2) -> void:
+	var texture: Texture2D = building_textures[building_id]
+	var draw_rect_size := rect.size * 1.85
+	if building_id == "chapel":
+		draw_rect_size = rect.size * 1.75
+	elif building_id == "communal_house":
+		draw_rect_size = rect.size * 1.70
+	var draw_rect_position := rect.get_center() - draw_rect_size * 0.5 + Vector2(0.0, -rect.size.y * 0.18)
+	draw_texture_rect(texture, Rect2(draw_rect_position, draw_rect_size), false)
+
+func draw_procedural_building(layout: Dictionary, rect: Rect2) -> void:
 	draw_rect(rect.grow(13.0), Color(0.02, 0.018, 0.014, 0.76))
 	draw_rect(rect.grow(5.0), Color(0.46, 0.38, 0.22, 0.08))
 	draw_rect(rect, layout["body"])
@@ -198,29 +259,6 @@ func draw_building(building_id: String, layout: Dictionary, viewport: Vector2) -
 		rect.position + Vector2(rect.size.x, rect.size.y * 0.50),
 		rect.position + Vector2(0.0, rect.size.y * 0.50)
 	]), layout["roof"])
-	var outline_alpha := 0.32
-	var outline_width := 2.0
-	if selected:
-		outline_alpha = 0.90
-		outline_width = 4.0
-	elif hovered:
-		outline_alpha = 0.78
-		outline_width = 3.0
-	draw_rect(rect, Color(0.81, 0.69, 0.42, outline_alpha), false, outline_width)
-	draw_door(rect)
-	draw_windows(rect)
-	draw_building_details(building_id, rect)
-	draw_building_status_marker(building_id, rect)
-	draw_label(center + Vector2(0.0, rect.size.y * 0.58), String(layout["label"]), selected)
-	if hovered:
-		draw_rect(rect.grow(8.0), Color(0.95, 0.78, 0.38, 0.22), false, 3.0)
-	if building_id == "well":
-		draw_circle(center, minf(footprint.x, footprint.y) * 0.48, Color(0.09, 0.16, 0.17, 1.0))
-		draw_circle(center, minf(footprint.x, footprint.y) * 0.28, Color(0.17, 0.31, 0.33, 0.9))
-	if building_id == "pastures":
-		draw_fence(rect.grow(28.0))
-	if building_id == "chapel":
-		draw_chapel_yard(rect)
 
 func draw_building_details(building_id: String, rect: Rect2) -> void:
 	if building_id == "forge":
@@ -268,6 +306,11 @@ func draw_building_details(building_id: String, rect: Rect2) -> void:
 
 func draw_building_status_marker(building_id: String, rect: Rect2) -> void:
 	var status := String(building_statuses.get(building_id, "activo"))
+	if status_icon_textures.has(status):
+		var texture: Texture2D = status_icon_textures[status]
+		var marker_rect := Rect2(rect.position + Vector2(rect.size.x - 22.0, 0.0), Vector2(24.0, 24.0))
+		draw_texture_rect(texture, marker_rect, false)
+		return
 	var color := Color(0.54, 0.68, 0.45, 1.0)
 	if status == "riesgo":
 		color = Color(0.82, 0.58, 0.28, 1.0)
@@ -361,6 +404,9 @@ func draw_npcs(viewport: Vector2) -> void:
 			draw_label(position + Vector2(0.0, 17.0), String(npc_names.get(npc_id, npc_id)), selected or hovered, 13)
 
 func draw_npc_sprite(npc_id: String, position: Vector2, selected: bool) -> void:
+	if npc_textures.has(npc_id):
+		draw_npc_texture(npc_id, position, selected)
+		return
 	var body_color: Color = NPC_COLORS.get(npc_id, Color(0.82, 0.72, 0.42, 1.0))
 	var scale := 1.0
 	if selected:
@@ -377,6 +423,17 @@ func draw_npc_sprite(npc_id: String, position: Vector2, selected: bool) -> void:
 	draw_npc_role_prop(npc_id, position, scale)
 	if selected:
 		draw_circle(position + Vector2(0.0, 5.0), 17.0, Color(0.92, 0.76, 0.36, 0.26), false, 2.0)
+
+func draw_npc_texture(npc_id: String, position: Vector2, selected: bool) -> void:
+	var texture: Texture2D = npc_textures[npc_id]
+	var draw_size := Vector2(38.0, 52.0)
+	if selected:
+		draw_size *= 1.14
+	draw_circle(position + Vector2(1.0, 14.0), draw_size.x * 0.36, Color(0, 0, 0, 0.36))
+	var draw_position := position - Vector2(draw_size.x * 0.5, draw_size.y * 0.72)
+	draw_texture_rect(texture, Rect2(draw_position, draw_size), false)
+	if selected:
+		draw_circle(position + Vector2(0.0, 5.0), 20.0, Color(0.92, 0.76, 0.36, 0.22), false, 2.0)
 
 func draw_npc_role_prop(npc_id: String, position: Vector2, scale: float) -> void:
 	var dark := Color(0.10, 0.07, 0.045, 0.88)
