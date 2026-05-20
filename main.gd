@@ -17,6 +17,7 @@ const EVENT_FEED_FADE_TIME := 1.25
 const MAX_VISIBLE_EVENT_FEED_MESSAGES := 4
 const DECISION_EVENT_CHANCE := 0.35
 const NPC_STATE_BAR_SEGMENTS := 12
+const MAP_POPUP_SIZE := Vector2(410.0, 280.0)
 
 var selected_npc_id: String = "aldric"
 var village_state := VillageState.new()
@@ -27,11 +28,12 @@ var event_feed_container: VBoxContainer
 var event_feed_empty_label: RichTextLabel
 var village_overview_panel: PanelContainer
 var village_overview_content: VBoxContainer
+var village_overview_expanded := false
 var map_mode_panel: PanelContainer
 var map_mode_buttons: Dictionary = {}
 var map_popup_panel: PanelContainer
 var map_popup_title: Label
-var map_popup_body: RichTextLabel
+var map_popup_content: VBoxContainer
 var map_popup_dragging := false
 var map_popup_drag_offset := Vector2.ZERO
 var resource_strip: HBoxContainer
@@ -104,7 +106,9 @@ func _input(event: InputEvent) -> void:
 	if not map_popup_dragging:
 		return
 	if event is InputEventMouseMotion:
-		map_popup_panel.position = clamp_map_popup_position(map_content.get_local_mouse_position() - map_popup_drag_offset)
+		var mouse_event := event as InputEventMouseMotion
+		var local_mouse: Vector2 = mouse_event.global_position - map_content.global_position
+		place_map_popup(clamp_map_popup_position(local_mouse - map_popup_drag_offset))
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		map_popup_dragging = false
 
@@ -116,13 +120,13 @@ func apply_map_first_hud_layout() -> void:
 	bottom_bar_panel.reparent(map_content)
 	top_bar_panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top_bar_panel.offset_left = 24.0
-	top_bar_panel.offset_top = 18.0
+	top_bar_panel.offset_top = 26.0
 	top_bar_panel.offset_right = -24.0
-	top_bar_panel.offset_bottom = 82.0
+	top_bar_panel.offset_bottom = 94.0
 	top_bar_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	bottom_bar_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom_bar_panel.offset_left = 24.0
-	bottom_bar_panel.offset_top = -78.0
+	bottom_bar_panel.offset_top = -104.0
 	bottom_bar_panel.offset_right = -24.0
 	bottom_bar_panel.offset_bottom = -18.0
 	bottom_bar_panel.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -157,18 +161,14 @@ func apply_visual_map_style() -> void:
 	bottom_bar_panel.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.022, 0.026, 0.027, 0.0), Color(0.66, 0.54, 0.32, 0.0), 0))
 
 	for button: Button in [people_button, chronicle_button, management_button, quests_button, build_button]:
-		button.add_theme_font_size_override("font_size", 17)
-		button.custom_minimum_size = Vector2(144, 46)
-		button.add_theme_stylebox_override("normal", make_button_style(Color(0.045, 0.050, 0.047, 0.95), Color(0.50, 0.43, 0.28, 0.52), 7))
-		button.add_theme_stylebox_override("hover", make_button_style(Color(0.075, 0.068, 0.052, 1.0), Color(0.78, 0.62, 0.34, 0.82), 7))
-		button.add_theme_stylebox_override("pressed", make_button_style(Color(0.10, 0.075, 0.045, 1.0), Color(0.90, 0.68, 0.34, 0.95), 7))
+		button.add_theme_font_size_override("font_size", 16)
+		button.custom_minimum_size = Vector2(196, 70)
+		apply_action_button_style(button, false)
 		button.add_theme_color_override("font_color", Color(0.84, 0.79, 0.66))
 
-	advance_day_button.custom_minimum_size = Vector2(184, 46)
+	advance_day_button.custom_minimum_size = Vector2(232, 70)
 	advance_day_button.add_theme_font_size_override("font_size", 18)
-	advance_day_button.add_theme_stylebox_override("normal", make_button_style(Color(0.18, 0.105, 0.045, 0.98), Color(0.88, 0.62, 0.30, 0.72), 7))
-	advance_day_button.add_theme_stylebox_override("hover", make_button_style(Color(0.24, 0.135, 0.055, 1.0), Color(1.0, 0.74, 0.38, 0.95), 7))
-	advance_day_button.add_theme_stylebox_override("pressed", make_button_style(Color(0.11, 0.065, 0.035, 1.0), Color(1.0, 0.80, 0.42, 1.0), 7))
+	apply_important_button_style(advance_day_button)
 	advance_day_button.add_theme_color_override("font_color", Color(0.98, 0.88, 0.62))
 
 	map_title_label.add_theme_color_override("font_color", Color(0.94, 0.86, 0.66))
@@ -214,6 +214,86 @@ func make_button_style(bg_color: Color, border_color: Color, radius: int) -> Sty
 	style.content_margin_bottom = 9
 	return style
 
+func make_textured_style(asset_path: String, fallback: StyleBox, margin: int = 24, content_margins: Vector4 = Vector4(14, 9, 14, 9), tint: Color = Color.WHITE) -> StyleBox:
+	var texture := UiAssetDatabase.load_texture(asset_path)
+	if texture == null:
+		return fallback
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.texture_margin_left = margin
+	style.texture_margin_top = margin
+	style.texture_margin_right = margin
+	style.texture_margin_bottom = margin
+	style.content_margin_left = content_margins.x
+	style.content_margin_top = content_margins.y
+	style.content_margin_right = content_margins.z
+	style.content_margin_bottom = content_margins.w
+	style.modulate_color = tint
+	return style
+
+func apply_action_button_style(button: Button, selected: bool) -> void:
+	var asset_path := String(UiAssetDatabase.get_button_asset_paths().get("default", ""))
+	var normal_tint := Color(0.90, 0.84, 0.70, 1.0)
+	var hover_tint := Color(1.08, 0.96, 0.72, 1.0)
+	var pressed_tint := Color(0.78, 0.64, 0.42, 1.0)
+	if selected:
+		normal_tint = Color(1.18, 0.96, 0.58, 1.0)
+		hover_tint = Color(1.28, 1.04, 0.66, 1.0)
+		pressed_tint = Color(1.0, 0.78, 0.44, 1.0)
+		button.add_theme_stylebox_override("normal", make_textured_style(
+			asset_path,
+			make_button_style(Color(0.115, 0.080, 0.045, 1.0), Color(0.92, 0.69, 0.34, 0.95), 7),
+			38,
+			Vector4(34, 19, 34, 19),
+			normal_tint
+		))
+	else:
+		button.add_theme_stylebox_override("normal", make_textured_style(
+			asset_path,
+			make_button_style(Color(0.045, 0.050, 0.047, 0.92), Color(0.50, 0.43, 0.28, 0.44), 7),
+			38,
+			Vector4(34, 19, 34, 19),
+			normal_tint
+		))
+	button.add_theme_stylebox_override("hover", make_textured_style(
+		asset_path,
+		make_button_style(Color(0.075, 0.068, 0.052, 1.0), Color(0.78, 0.62, 0.34, 0.82), 7),
+		38,
+		Vector4(34, 19, 34, 19),
+		hover_tint
+	))
+	button.add_theme_stylebox_override("pressed", make_textured_style(
+		asset_path,
+		make_button_style(Color(0.10, 0.075, 0.045, 1.0), Color(0.90, 0.68, 0.34, 0.95), 7),
+		38,
+		Vector4(34, 19, 34, 19),
+		pressed_tint
+	))
+
+func apply_important_button_style(button: Button) -> void:
+	var asset_path := String(UiAssetDatabase.get_button_asset_paths().get("important", ""))
+	button.add_theme_stylebox_override("normal", make_textured_style(
+		asset_path,
+		make_button_style(Color(0.18, 0.105, 0.045, 0.98), Color(0.88, 0.62, 0.30, 0.72), 7),
+		38,
+		Vector4(34, 19, 34, 19),
+		Color(1.05, 0.86, 0.54, 1.0)
+	))
+	button.add_theme_stylebox_override("hover", make_textured_style(
+		asset_path,
+		make_button_style(Color(0.24, 0.135, 0.055, 1.0), Color(1.0, 0.74, 0.38, 0.95), 7),
+		38,
+		Vector4(34, 19, 34, 19),
+		Color(1.24, 0.98, 0.62, 1.0)
+	))
+	button.add_theme_stylebox_override("pressed", make_textured_style(
+		asset_path,
+		make_button_style(Color(0.11, 0.065, 0.035, 1.0), Color(1.0, 0.80, 0.42, 1.0), 7),
+		38,
+		Vector4(34, 19, 34, 19),
+		Color(0.92, 0.64, 0.34, 1.0)
+	))
+
 func make_panel_style(bg_color: Color = Color(0.020, 0.025, 0.026, 0.94), border_color: Color = Color(0.75, 0.61, 0.34, 0.46), radius: int = 8) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg_color
@@ -232,9 +312,31 @@ func make_panel_style(bg_color: Color = Color(0.020, 0.025, 0.026, 0.94), border
 	style.content_margin_bottom = 10
 	return style
 
+func make_map_popup_style() -> StyleBoxFlat:
+	var style := make_panel_style(Color(0.018, 0.022, 0.021, 0.92), Color(0.86, 0.66, 0.34, 0.72), 8)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.content_margin_left = 18
+	style.content_margin_top = 16
+	style.content_margin_right = 18
+	style.content_margin_bottom = 16
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.42)
+	style.shadow_size = 12
+	style.shadow_offset = Vector2(0, 5)
+	return style
+
 func apply_translucent_context_style() -> void:
-	context_panel.custom_minimum_size = Vector2(448, 0)
-	context_panel.offset_right = 466.0
+	context_panel.anchor_left = 0.0
+	context_panel.anchor_top = 0.0
+	context_panel.anchor_right = 0.0
+	context_panel.anchor_bottom = 1.0
+	context_panel.offset_left = 20.0
+	context_panel.offset_top = 24.0
+	context_panel.offset_right = 440.0
+	context_panel.offset_bottom = -126.0
+	context_panel.custom_minimum_size = Vector2(420, 0)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.020, 0.025, 0.026, 0.95)
 	style.border_color = Color(0.75, 0.61, 0.34, 0.52)
@@ -274,19 +376,20 @@ func create_resource_strip() -> void:
 func make_resource_chip(resource_name: String) -> PanelContainer:
 	var chip := PanelContainer.new()
 	chip.name = "%sChip" % resource_name.capitalize()
+	chip.custom_minimum_size = Vector2(94, 42)
 	chip.tooltip_text = String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name))
 	chip.add_theme_stylebox_override("panel", make_resource_chip_style())
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 6)
-	margin.add_theme_constant_override("margin_right", 7)
-	margin.add_theme_constant_override("margin_top", 3)
-	margin.add_theme_constant_override("margin_bottom", 3)
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_top", 5)
+	margin.add_theme_constant_override("margin_bottom", 5)
 	chip.add_child(margin)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
+	row.add_theme_constant_override("separation", 6)
 	margin.add_child(row)
 	var icon := TextureRect.new()
-	icon.custom_minimum_size = Vector2(25, 25)
+	icon.custom_minimum_size = Vector2(24, 24)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var icon_path := String(UiAssetDatabase.get_generated_resource_icon_paths().get(resource_name, ""))
@@ -294,15 +397,16 @@ func make_resource_chip(resource_name: String) -> PanelContainer:
 		icon.texture = UiAssetDatabase.load_texture(icon_path)
 	row.add_child(icon)
 	var text_stack := VBoxContainer.new()
+	text_stack.custom_minimum_size = Vector2(48, 0)
 	text_stack.add_theme_constant_override("separation", -3)
 	row.add_child(text_stack)
 	var caption := Label.new()
 	caption.text = String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name)).to_upper()
-	caption.add_theme_font_size_override("font_size", 10)
+	caption.add_theme_font_size_override("font_size", 9)
 	caption.add_theme_color_override("font_color", Color(0.58, 0.52, 0.40))
 	text_stack.add_child(caption)
 	var value_label := Label.new()
-	value_label.add_theme_font_size_override("font_size", 17)
+	value_label.add_theme_font_size_override("font_size", 16)
 	value_label.add_theme_color_override("font_color", Color(0.93, 0.82, 0.58))
 	value_label.text = "0"
 	text_stack.add_child(value_label)
@@ -338,9 +442,9 @@ func create_map_mode_panel() -> void:
 	map_mode_panel.anchor_bottom = 0.0
 	map_mode_panel.offset_left = 24.0
 	map_mode_panel.offset_top = 24.0
-	map_mode_panel.offset_right = 310.0
-	map_mode_panel.offset_bottom = 72.0
-	map_mode_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.020, 0.58), Color(0.64, 0.52, 0.30, 0.28), 7))
+	map_mode_panel.offset_right = 262.0
+	map_mode_panel.offset_bottom = 70.0
+	map_mode_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.020, 0.38), Color(0.64, 0.52, 0.30, 0.18), 7))
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 8)
 	margin.add_theme_constant_override("margin_top", 6)
@@ -350,16 +454,17 @@ func create_map_mode_panel() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	margin.add_child(row)
-	row.add_child(make_map_mode_button("normal", "Mapa"))
-	row.add_child(make_map_mode_button("recursos", "Recursos"))
-	row.add_child(make_map_mode_button("riesgo", "Riesgo"))
+	row.add_child(make_map_mode_button("normal", "Mapa", "Mapa normal", Vector2(62, 32)))
+	row.add_child(make_map_mode_button("recursos", "Rec.", "Recursos", Vector2(58, 32)))
+	row.add_child(make_map_mode_button("riesgo", "Riesgo", "Riesgo y seguridad", Vector2(78, 32)))
 	map_content.add_child(map_mode_panel)
 	set_map_mode("normal")
 
-func make_map_mode_button(mode: String, label_text: String) -> Button:
+func make_map_mode_button(mode: String, label_text: String, tooltip: String, minimum_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = label_text
-	button.custom_minimum_size = Vector2(82, 32)
+	button.tooltip_text = tooltip
+	button.custom_minimum_size = minimum_size
 	button.add_theme_font_size_override("font_size", 13)
 	button.pressed.connect(func(): set_map_mode(mode))
 	map_mode_buttons[mode] = button
@@ -375,20 +480,29 @@ func set_map_mode(mode: String) -> void:
 			button.add_theme_stylebox_override("normal", make_button_style(Color(0.12, 0.08, 0.04, 0.96), Color(0.92, 0.68, 0.34, 0.90), 6))
 			button.add_theme_color_override("font_color", Color(0.98, 0.88, 0.62))
 		else:
-			button.add_theme_stylebox_override("normal", make_button_style(Color(0.035, 0.040, 0.037, 0.90), Color(0.50, 0.43, 0.28, 0.42), 6))
+			button.add_theme_stylebox_override("normal", make_button_style(Color(0.035, 0.040, 0.037, 0.82), Color(0.50, 0.43, 0.28, 0.32), 6))
 			button.add_theme_color_override("font_color", Color(0.80, 0.74, 0.62))
+		button.add_theme_stylebox_override("hover", make_button_style(Color(0.075, 0.063, 0.042, 0.96), Color(0.78, 0.61, 0.32, 0.72), 6))
+		button.add_theme_stylebox_override("pressed", make_button_style(Color(0.11, 0.075, 0.040, 1.0), Color(0.90, 0.68, 0.34, 0.90), 6))
 
 func create_map_context_popup() -> void:
 	map_popup_panel = PanelContainer.new()
 	map_popup_panel.name = "MapContextPopup"
 	map_popup_panel.visible = false
-	map_popup_panel.custom_minimum_size = Vector2(310, 0)
-	map_popup_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.021, 0.94), Color(0.80, 0.64, 0.34, 0.55), 8))
+	map_popup_panel.anchor_left = 0.0
+	map_popup_panel.anchor_top = 0.0
+	map_popup_panel.anchor_right = 0.0
+	map_popup_panel.anchor_bottom = 0.0
+	map_popup_panel.custom_minimum_size = MAP_POPUP_SIZE
+	map_popup_panel.size = MAP_POPUP_SIZE
+	map_popup_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	map_popup_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	map_popup_panel.add_theme_stylebox_override("panel", make_map_popup_style())
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 13)
-	margin.add_theme_constant_override("margin_top", 11)
-	margin.add_theme_constant_override("margin_right", 13)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_bottom", 16)
 	map_popup_panel.add_child(margin)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 7)
@@ -408,49 +522,60 @@ func create_map_context_popup() -> void:
 	var close_button := Button.new()
 	close_button.text = "×"
 	close_button.custom_minimum_size = Vector2(34, 30)
+	close_button.add_theme_stylebox_override("normal", make_button_style(Color(0.035, 0.038, 0.034, 0.55), Color(0.50, 0.42, 0.26, 0.30), 6))
+	close_button.add_theme_stylebox_override("hover", make_button_style(Color(0.11, 0.06, 0.04, 0.86), Color(0.86, 0.60, 0.34, 0.80), 6))
 	close_button.pressed.connect(func(): map_popup_panel.visible = false)
 	header.add_child(close_button)
-	map_popup_body = RichTextLabel.new()
-	map_popup_body.bbcode_enabled = true
-	map_popup_body.fit_content = true
-	map_popup_body.scroll_active = false
-	map_popup_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	map_popup_body.custom_minimum_size = Vector2(280, 0)
-	content.add_child(map_popup_body)
+	map_popup_content = VBoxContainer.new()
+	map_popup_content.add_theme_constant_override("separation", 8)
+	map_popup_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_child(map_popup_content)
 	map_content.add_child(map_popup_panel)
 
 func _on_map_popup_header_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		var mouse_event := event as InputEventMouseButton
 		map_popup_dragging = event.pressed
 		if event.pressed:
-			map_popup_drag_offset = map_content.get_local_mouse_position() - map_popup_panel.position
+			enforce_map_popup_size()
+			map_popup_drag_offset = mouse_event.global_position - map_popup_panel.global_position
 			map_popup_panel.move_to_front()
 
-func show_map_popup(title: String, body: String, screen_position: Vector2) -> void:
+func show_map_popup_at(title: String, screen_position: Vector2) -> void:
 	context_panel.visible = false
 	map_popup_title.text = title
-	map_popup_body.text = body
 	map_popup_panel.visible = true
-	map_popup_panel.position = get_clamped_map_popup_position(screen_position)
+	place_map_popup(get_clamped_map_popup_position(screen_position))
 	map_popup_panel.move_to_front()
+	map_popup_panel.call_deferred("set_size", MAP_POPUP_SIZE)
+	call_deferred("place_map_popup", map_popup_panel.position)
+
+func place_map_popup(position: Vector2) -> void:
+	map_popup_panel.position = position
+	map_popup_panel.size = MAP_POPUP_SIZE
+	map_popup_panel.offset_left = position.x
+	map_popup_panel.offset_top = position.y
+	map_popup_panel.offset_right = position.x + MAP_POPUP_SIZE.x
+	map_popup_panel.offset_bottom = position.y + MAP_POPUP_SIZE.y
+
+func enforce_map_popup_size() -> void:
+	place_map_popup(map_popup_panel.position)
 
 func get_clamped_map_popup_position(screen_position: Vector2) -> Vector2:
-	var popup_size := Vector2(330.0, 230.0)
+	var popup_size := MAP_POPUP_SIZE
 	var position := screen_position + Vector2(26.0, -18.0)
 	if position.x + popup_size.x > map_content.size.x - 18.0:
 		position.x = screen_position.x - popup_size.x - 26.0
-	if position.y + popup_size.y > map_content.size.y - 92.0:
-		position.y = map_content.size.y - popup_size.y - 92.0
+	if position.y + popup_size.y > map_content.size.y - 126.0:
+		position.y = map_content.size.y - popup_size.y - 126.0
 	position.x = clamp(position.x, 18.0, maxf(18.0, map_content.size.x - popup_size.x - 18.0))
-	position.y = clamp(position.y, 88.0, maxf(88.0, map_content.size.y - popup_size.y - 92.0))
+	position.y = clamp(position.y, 88.0, maxf(88.0, map_content.size.y - popup_size.y - 126.0))
 	return position
 
 func clamp_map_popup_position(position: Vector2) -> Vector2:
-	var popup_size := map_popup_panel.size
-	if popup_size.x <= 0.0 or popup_size.y <= 0.0:
-		popup_size = Vector2(330.0, 230.0)
+	var popup_size := MAP_POPUP_SIZE
 	var max_x := maxf(18.0, map_content.size.x - popup_size.x - 18.0)
-	var max_y := maxf(88.0, map_content.size.y - popup_size.y - 86.0)
+	var max_y := maxf(88.0, map_content.size.y - popup_size.y - 126.0)
 	return Vector2(
 		clamp(position.x, 18.0, max_x),
 		clamp(position.y, 88.0, max_y)
@@ -465,10 +590,10 @@ func create_village_overview_panel() -> void:
 	village_overview_panel.anchor_right = 1.0
 	village_overview_panel.anchor_bottom = 0.0
 	village_overview_panel.offset_left = -246.0
-	village_overview_panel.offset_top = 38.0
+	village_overview_panel.offset_top = 104.0
 	village_overview_panel.offset_right = -24.0
-	village_overview_panel.offset_bottom = 154.0
-	village_overview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	village_overview_panel.offset_bottom = 220.0
+	village_overview_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	village_overview_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.022, 0.66), Color(0.70, 0.58, 0.34, 0.26), 8))
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
@@ -487,21 +612,52 @@ func update_village_overview_panel() -> void:
 	for child in village_overview_content.get_children():
 		child.queue_free()
 	add_overview_title()
-	add_overview_mood_row()
-	add_overview_warning_row()
+	if village_overview_expanded:
+		add_overview_mood_row()
+		add_overview_warning_row()
+	else:
+		add_overview_compact_summary()
 	village_map_view.set_building_statuses(get_building_visual_statuses())
 
 func add_overview_title() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	village_overview_content.add_child(row)
 	var title := Label.new()
 	title.text = "Consejo"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(0.96, 0.86, 0.60))
-	village_overview_content.add_child(title)
+	row.add_child(title)
+	var toggle := Button.new()
+	toggle.text = "-" if village_overview_expanded else "+"
+	toggle.tooltip_text = "Mostrar detalle" if not village_overview_expanded else "Ocultar detalle"
+	toggle.custom_minimum_size = Vector2(28, 26)
+	toggle.add_theme_font_size_override("font_size", 15)
+	toggle.add_theme_stylebox_override("normal", make_button_style(Color(0.035, 0.040, 0.036, 0.60), Color(0.55, 0.46, 0.28, 0.28), 5))
+	toggle.add_theme_stylebox_override("hover", make_button_style(Color(0.09, 0.07, 0.045, 0.92), Color(0.86, 0.66, 0.34, 0.70), 5))
+	toggle.pressed.connect(toggle_village_overview)
+	row.add_child(toggle)
 	var subtitle := Label.new()
 	subtitle.text = "Prioridad: %s" % MonthlyStrategyDatabase.get_strategy_name(village_state.current_strategy_id)
 	subtitle.add_theme_font_size_override("font_size", 11)
 	subtitle.add_theme_color_override("font_color", Color(0.65, 0.58, 0.44))
 	village_overview_content.add_child(subtitle)
+
+func toggle_village_overview() -> void:
+	village_overview_expanded = not village_overview_expanded
+	village_overview_panel.offset_bottom = 312.0 if village_overview_expanded else 220.0
+	update_village_overview_panel()
+
+func add_overview_compact_summary() -> void:
+	var summary := Label.new()
+	summary.text = "Ánimo %d  ·  Estrés %d" % [
+		village_state.get_average_state("ánimo"),
+		village_state.get_average_state("estrés")
+	]
+	summary.add_theme_font_size_override("font_size", 13)
+	summary.add_theme_color_override("font_color", Color(0.86, 0.80, 0.64))
+	village_overview_content.add_child(summary)
 
 func add_overview_mood_row() -> void:
 	var row := HBoxContainer.new()
@@ -534,6 +690,58 @@ func make_metric_card(label_text: String, value: int, inverted: bool) -> PanelCo
 	value_label.add_theme_color_override("font_color", Color.html(get_state_color(value, inverted)))
 	content.add_child(value_label)
 	return card
+
+func clear_map_popup_content() -> void:
+	for child in map_popup_content.get_children():
+		child.queue_free()
+
+func add_map_popup_label(text: String, font_size: int, color: Color, bold := false) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	if bold:
+		label.add_theme_font_override("font", get_theme_font("bold", "Label"))
+	map_popup_content.add_child(label)
+	return label
+
+func add_map_popup_section(text: String) -> void:
+	var label := add_map_popup_label(text, 17, Color(0.96, 0.87, 0.64), true)
+	label.custom_minimum_size = Vector2(0, 20)
+
+func add_map_popup_action(text: String) -> void:
+	var label := add_map_popup_label(text, 15, Color(0.86, 0.75, 0.50), false)
+	label.custom_minimum_size = Vector2(0, 24)
+
+func add_map_popup_stat_row(label_text: String, value: int, inverted: bool) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	map_popup_content.add_child(row)
+	var name_label := Label.new()
+	name_label.text = label_text
+	name_label.custom_minimum_size = Vector2(58, 0)
+	name_label.add_theme_font_size_override("font_size", 15)
+	name_label.add_theme_color_override("font_color", Color(0.90, 0.84, 0.70))
+	row.add_child(name_label)
+	var bar := ProgressBar.new()
+	bar.min_value = 0
+	bar.max_value = 100
+	bar.value = value
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(150, 12)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_theme_stylebox_override("background", make_button_style(Color(0.035, 0.038, 0.034, 0.90), Color(0.42, 0.34, 0.20, 0.40), 3))
+	bar.add_theme_stylebox_override("fill", make_button_style(Color.html(get_state_color(value, inverted)), Color(0, 0, 0, 0), 3))
+	row.add_child(bar)
+	var value_label := Label.new()
+	value_label.text = "%d/100" % value
+	value_label.custom_minimum_size = Vector2(56, 0)
+	value_label.add_theme_font_size_override("font_size", 15)
+	value_label.add_theme_color_override("font_color", Color(0.96, 0.87, 0.64))
+	row.add_child(value_label)
 
 func add_overview_warning_row() -> void:
 	var text := RichTextLabel.new()
@@ -876,7 +1084,7 @@ func show_npc_from_map(npc_id: String, screen_position: Vector2 = Vector2(-1.0, 
 		npc_list.select(npc_index)
 	village_map_view.select_npc(npc_id)
 	if screen_position.x >= 0.0:
-		show_map_popup(String(village_state.npcs[npc_id]["name"]), get_npc_map_popup_text(npc_id), screen_position)
+		show_npc_map_popup(npc_id, screen_position)
 	else:
 		show_context("Habitantes", "", true)
 
@@ -910,6 +1118,13 @@ func format_status_dot(status: String) -> String:
 		return "[color=#d09347]▲[/color]"
 	return "[color=#8aac73]●[/color]"
 
+func get_status_color(status: String) -> String:
+	if status == "bloqueado":
+		return "#a33b35"
+	if status == "riesgo":
+		return "#d09347"
+	return "#8aac73"
+
 func update_action_bar_selection() -> void:
 	var styles := {
 		"people": people_button,
@@ -921,10 +1136,10 @@ func update_action_bar_selection() -> void:
 	for context_id: String in styles.keys():
 		var button: Button = styles[context_id]
 		if context_id == active_context_id:
-			button.add_theme_stylebox_override("normal", make_button_style(Color(0.115, 0.080, 0.045, 1.0), Color(0.92, 0.69, 0.34, 0.95), 7))
+			apply_action_button_style(button, true)
 			button.add_theme_color_override("font_color", Color(0.98, 0.88, 0.62))
 		else:
-			button.add_theme_stylebox_override("normal", make_button_style(Color(0.045, 0.050, 0.047, 0.95), Color(0.50, 0.43, 0.28, 0.52), 7))
+			apply_action_button_style(button, false)
 			button.add_theme_color_override("font_color", Color(0.84, 0.79, 0.66))
 
 func show_people_panel() -> void:
@@ -1113,35 +1328,38 @@ func show_building_panel(building_id: String, screen_position: Vector2 = Vector2
 	village_map_view.select_building(building_id)
 	var building: Dictionary = village_state.get_building(building_id)
 	if screen_position.x >= 0.0:
-		show_map_popup(String(building.get("name", "Edificio")), get_building_map_popup_text(building_id, building), screen_position)
+		show_building_map_popup(building_id, building, screen_position)
 	else:
 		show_context(String(building.get("name", "Edificio")), get_building_panel_text(building), false)
 
-func get_npc_map_popup_text(npc_id: String) -> String:
+func show_npc_map_popup(npc_id: String, screen_position: Vector2) -> void:
 	var npc: Dictionary = village_state.npcs[npc_id]
-	var text := "[color=#cdbf9c]%d años · %s[/color]\n" % [int(npc["age"]), npc["profession"]]
-	text += "[color=#8d8062]%s[/color]\n\n" % npc["location"]
-	text += "[b]Estado[/b]\n"
-	text += format_state_line("Salud", int(npc["state"].get("salud", 0)), false)
-	text += format_state_line("Ánimo", int(npc["state"].get("ánimo", 0)), false)
-	text += format_state_line("Estrés", int(npc["state"].get("estrés", 0)), true)
-	text += "\n[color=#d8c28a]Clic en Habitantes para abrir ficha completa.[/color]"
-	return text
+	clear_map_popup_content()
+	add_map_popup_label("%d años · %s" % [int(npc["age"]), npc["profession"]], 15, Color(0.80, 0.73, 0.58))
+	add_map_popup_label(String(npc["location"]), 14, Color(0.58, 0.52, 0.40))
+	add_map_popup_section("Estado")
+	add_map_popup_stat_row("Salud", int(npc["state"].get("salud", 0)), false)
+	add_map_popup_stat_row("Ánimo", int(npc["state"].get("ánimo", 0)), false)
+	add_map_popup_stat_row("Estrés", int(npc["state"].get("estrés", 0)), true)
+	add_map_popup_action("Habitantes: ficha completa")
+	show_map_popup_at(String(npc["name"]), screen_position)
 
-func get_building_map_popup_text(building_id: String, building: Dictionary) -> String:
+func show_building_map_popup(building_id: String, building: Dictionary, screen_position: Vector2) -> void:
 	var visual_status := String(get_building_visual_statuses().get(building_id, "activo"))
-	var text := "%s [color=#cdbf9c]%s · Nivel %d · %d/100[/color]\n\n" % [
-		format_status_dot(visual_status),
+	clear_map_popup_content()
+	add_map_popup_label("%s · Nivel %d · %d/100" % [
 		building.get("status", "Sin estado"),
 		int(building.get("level", 1)),
 		int(building.get("condition", 100))
-	]
-	text += "[b]Función[/b]\n%s\n" % building.get("function", "Sin función registrada.")
+	], 15, Color.html(get_status_color(visual_status)))
+	add_map_popup_section("Función")
+	add_map_popup_label(String(building.get("function", "Sin función registrada.")), 16, Color(0.90, 0.84, 0.70))
 	var place_note := get_place_context_note(building_id)
 	if place_note != "":
-		text += "\n[b]Rumor / situación[/b]\n%s\n" % place_note
-	text += "\n[color=#d8c28a]Clic en Construir para abrir registro completo.[/color]"
-	return text
+		add_map_popup_section("Situación")
+		add_map_popup_label(place_note, 15, Color(0.78, 0.72, 0.58))
+	add_map_popup_action("Construir: registro completo")
+	show_map_popup_at(String(building.get("name", "Edificio")), screen_position)
 
 func get_place_context_note(building_id: String) -> String:
 	if building_id == "forge":
