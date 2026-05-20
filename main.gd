@@ -25,6 +25,8 @@ var diary_system := DiarySystem.new()
 var event_feed_panel: PanelContainer
 var event_feed_container: VBoxContainer
 var event_feed_empty_label: RichTextLabel
+var village_overview_panel: PanelContainer
+var village_overview_content: VBoxContainer
 var resource_strip: HBoxContainer
 var resource_value_labels: Dictionary = {}
 var dynamic_context_buttons: Array[Button] = []
@@ -67,6 +69,7 @@ func _ready() -> void:
 	apply_visual_map_style()
 	apply_translucent_context_style()
 	create_resource_strip()
+	create_village_overview_panel()
 	create_event_feed_overlay()
 	connect_signals()
 	update_all_ui()
@@ -125,7 +128,7 @@ func apply_visual_map_style() -> void:
 	map_title_label.add_theme_constant_override("shadow_offset_x", 2)
 	map_title_label.add_theme_constant_override("shadow_offset_y", 2)
 	map_hint_label.add_theme_color_override("default_color", Color(0.86, 0.80, 0.66))
-	map_status_label.add_theme_stylebox_override("normal", make_hud_panel_style(Color(0.025, 0.031, 0.028, 0.62), Color(0.64, 0.52, 0.30, 0.24), 8))
+	map_status_label.visible = false
 
 func make_hud_panel_style(bg_color: Color, border_color: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -161,6 +164,24 @@ func make_button_style(bg_color: Color, border_color: Color, radius: int) -> Sty
 	style.content_margin_top = 9
 	style.content_margin_right = 14
 	style.content_margin_bottom = 9
+	return style
+
+func make_panel_style(bg_color: Color = Color(0.020, 0.025, 0.026, 0.94), border_color: Color = Color(0.75, 0.61, 0.34, 0.46), radius: int = 8) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = border_color
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = radius
+	style.corner_radius_top_right = radius
+	style.corner_radius_bottom_left = radius
+	style.corner_radius_bottom_right = radius
+	style.content_margin_left = 12
+	style.content_margin_top = 10
+	style.content_margin_right = 12
+	style.content_margin_bottom = 10
 	return style
 
 func apply_translucent_context_style() -> void:
@@ -260,6 +281,160 @@ func update_resource_strip() -> void:
 		if resource_value_labels.has(resource_name):
 			var label: Label = resource_value_labels[resource_name]
 			label.text = str(village_state.get_resource(resource_name))
+
+func create_village_overview_panel() -> void:
+	village_overview_panel = PanelContainer.new()
+	village_overview_panel.name = "VillageOverviewPanel"
+	village_overview_panel.custom_minimum_size = Vector2(344, 0)
+	village_overview_panel.anchor_left = 1.0
+	village_overview_panel.anchor_top = 0.0
+	village_overview_panel.anchor_right = 1.0
+	village_overview_panel.anchor_bottom = 0.0
+	village_overview_panel.offset_left = -372.0
+	village_overview_panel.offset_top = 132.0
+	village_overview_panel.offset_right = -24.0
+	village_overview_panel.offset_bottom = 438.0
+	village_overview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	village_overview_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.022, 0.78), Color(0.70, 0.58, 0.34, 0.32), 8))
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	village_overview_panel.add_child(margin)
+	village_overview_content = VBoxContainer.new()
+	village_overview_content.add_theme_constant_override("separation", 8)
+	margin.add_child(village_overview_content)
+	map_content.add_child(village_overview_panel)
+
+func update_village_overview_panel() -> void:
+	if village_overview_content == null:
+		return
+	for child in village_overview_content.get_children():
+		child.queue_free()
+	add_overview_title()
+	add_overview_mood_row()
+	add_overview_warning_row()
+	add_overview_building_watch()
+	village_map_view.set_building_statuses(get_building_visual_statuses())
+
+func add_overview_title() -> void:
+	var title := Label.new()
+	title.text = "Consejo de aldea"
+	title.add_theme_font_size_override("font_size", 21)
+	title.add_theme_color_override("font_color", Color(0.96, 0.86, 0.60))
+	village_overview_content.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = "Prioridad: %s" % MonthlyStrategyDatabase.get_strategy_name(village_state.current_strategy_id)
+	subtitle.add_theme_font_size_override("font_size", 14)
+	subtitle.add_theme_color_override("font_color", Color(0.65, 0.58, 0.44))
+	village_overview_content.add_child(subtitle)
+
+func add_overview_mood_row() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	village_overview_content.add_child(row)
+	row.add_child(make_metric_card("Ánimo", village_state.get_average_state("ánimo"), false))
+	row.add_child(make_metric_card("Estrés", village_state.get_average_state("estrés"), true))
+
+func make_metric_card(label_text: String, value: int, inverted: bool) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_theme_stylebox_override("panel", make_panel_style(Color(0.035, 0.041, 0.038, 0.82), Color(0.50, 0.42, 0.26, 0.30), 7))
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 7)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 7)
+	card.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 3)
+	margin.add_child(content)
+	var name_label := Label.new()
+	name_label.text = label_text.to_upper()
+	name_label.add_theme_font_size_override("font_size", 10)
+	name_label.add_theme_color_override("font_color", Color(0.62, 0.55, 0.42))
+	content.add_child(name_label)
+	var value_label := Label.new()
+	value_label.text = "%d/100" % value
+	value_label.add_theme_font_size_override("font_size", 19)
+	value_label.add_theme_color_override("font_color", Color.html(get_state_color(value, inverted)))
+	content.add_child(value_label)
+	return card
+
+func add_overview_warning_row() -> void:
+	var text := RichTextLabel.new()
+	text.bbcode_enabled = true
+	text.fit_content = true
+	text.scroll_active = false
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.text = get_village_warning_text()
+	village_overview_content.add_child(text)
+
+func get_village_warning_text() -> String:
+	var food := village_state.get_resource("comida")
+	var medicine := village_state.get_resource("medicina")
+	var security := village_state.get_resource("seguridad")
+	if food <= 35:
+		return "[color=#d09347][b]Alerta[/b][/color]\nLas reservas de comida empiezan a tensar la rutina."
+	if medicine <= 5:
+		return "[color=#d09347][b]Alerta[/b][/color]\nLa casa de curas necesita hierbas antes de que llegue una crisis."
+	if security <= 20:
+		return "[color=#a33b35][b]Riesgo[/b][/color]\nLas rondas son escasas y la frontera se siente abierta."
+	return "[color=#8aac73][b]Estable[/b][/color]\nLa aldea aguanta el día, aunque la niebla no retrocede."
+
+func add_overview_building_watch() -> void:
+	var header := Label.new()
+	header.text = "Edificios clave"
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", Color(0.88, 0.78, 0.55))
+	village_overview_content.add_child(header)
+	for building_id in ["communal_house", "forge", "farms", "healers_house", "pastures"]:
+		village_overview_content.add_child(make_building_watch_row(building_id))
+
+func make_building_watch_row(building_id: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
+	var marker := ColorRect.new()
+	marker.custom_minimum_size = Vector2(7, 18)
+	marker.color = get_visual_status_color(String(get_building_visual_statuses().get(building_id, "activo")))
+	row.add_child(marker)
+	var building := village_state.get_building(building_id)
+	var label := Label.new()
+	label.text = "%s · %s" % [building.get("name", building_id), building.get("status", "")]
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", Color(0.82, 0.77, 0.64))
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(label)
+	return row
+
+func get_building_visual_statuses() -> Dictionary:
+	var statuses := {}
+	for building_id: String in BuildingDatabase.get_building_order():
+		if not village_state.has_building(building_id):
+			continue
+		var building := village_state.get_building(building_id)
+		var condition := int(building.get("condition", 100))
+		var status := "activo"
+		if condition <= 35:
+			status = "bloqueado"
+		elif condition <= 65:
+			status = "riesgo"
+		statuses[building_id] = status
+	if village_state.get_resource("hierro") <= 2:
+		statuses["forge"] = "riesgo"
+	if village_state.get_resource("medicina") <= 5:
+		statuses["healers_house"] = "riesgo"
+	if village_state.get_resource("seguridad") <= 20:
+		statuses["pastures"] = "riesgo"
+	return statuses
+
+func get_visual_status_color(status: String) -> Color:
+	if status == "bloqueado":
+		return Color(0.62, 0.23, 0.20)
+	if status == "riesgo":
+		return Color(0.82, 0.58, 0.28)
+	return Color(0.54, 0.68, 0.45)
 
 func create_event_feed_overlay() -> void:
 	event_feed_panel = PanelContainer.new()
@@ -460,6 +635,7 @@ func update_all_ui() -> void:
 	update_title()
 	update_resource_strip()
 	update_map_status()
+	update_village_overview_panel()
 	if context_panel.visible and npc_info_label.visible:
 		update_npc_panel()
 
@@ -473,28 +649,7 @@ func update_title() -> void:
 	]
 
 func update_map_status() -> void:
-	var average_mood := village_state.get_average_state("ánimo")
-	var average_stress := village_state.get_average_state("estrés")
-	var mood_color := "#a33b35"
-	if average_mood >= 55:
-		mood_color = "#8aac73"
-	elif average_mood >= 35:
-		mood_color = "#d09347"
-	var stress_color := "#a33b35"
-	if average_stress <= 35:
-		stress_color = "#8aac73"
-	elif average_stress <= 60:
-		stress_color = "#d09347"
-	map_status_label.text = "[center][font_size=21][b]Pulso de la aldea[/b][/font_size]\n[color=%s]Ánimo %d/100[/color]   [color=%s]Estrés %d/100[/color]   Habitantes %d\n[color=#d8c28a]%s[/color]   Comida %d   Seguridad %d[/center]" % [
-		mood_color,
-		average_mood,
-		stress_color,
-		average_stress,
-		village_state.npc_order.size(),
-		MonthlyStrategyDatabase.get_strategy_name(village_state.current_strategy_id),
-		village_state.get_resource("comida"),
-		village_state.get_resource("seguridad")
-	]
+	map_status_label.text = ""
 
 func clear_dynamic_context_buttons() -> void:
 	for button: Button in dynamic_context_buttons:
@@ -586,30 +741,62 @@ func set_monthly_strategy(strategy_id: String) -> void:
 
 func get_management_panel_text() -> String:
 	var strategy := MonthlyStrategyDatabase.get_strategy(village_state.current_strategy_id)
-	var text := "[b]Calendario[/b]\nMes %d · Día %d/%d\n\n" % [village_state.month, village_state.day_of_month, village_state.DAYS_PER_MONTH]
-	text += "[b]Prioridad mensual[/b]\n%s\n[i]%s[/i]\n" % [strategy.get("name", "Equilibrada"), strategy.get("description", "")]
+	var text := "[font_size=22][b]Registro del consejo[/b][/font_size]\n"
+	text += "[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n"
+	text += "[b]Calendario[/b]\nMes %d · Día %d/%d\n\n" % [village_state.month, village_state.day_of_month, village_state.DAYS_PER_MONTH]
+	text += "[b]Prioridad mensual[/b]\n[color=#f0dfb2]%s[/color]\n[i]%s[/i]\n" % [strategy.get("name", "Equilibrada"), strategy.get("description", "")]
 	if village_state.is_start_of_month():
-		text += "\nPuedes cambiar la prioridad al inicio del mes.\n"
+		text += "\n[color=#d8c28a]Puedes cambiar la prioridad al inicio del mes.[/color]\n"
 	else:
-		text += "\nLa prioridad se podrá cambiar al comenzar el próximo mes.\n"
-	text += "\n[b]Oficios activos[/b]\n"
+		text += "\n[color=#8d8062]La prioridad se podrá cambiar al comenzar el próximo mes.[/color]\n"
+	text += "\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n[b]Oficios activos[/b]\n"
 	for line: String in village_state.get_job_summary_lines():
-		text += "%s\n" % colorize_job_status_line(line)
-	text += "\n[b]Recursos[/b]\n"
+		text += "%s\n" % format_job_status_badge(line)
+	text += "\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n[b]Recursos[/b]\n"
 	for resource_name: String in ResourceDatabase.get_resource_order():
 		var label := String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name))
 		var icon_path := String(UiAssetDatabase.get_resource_icon_paths().get(resource_name, ""))
+		var value := village_state.get_resource(resource_name)
+		var value_color := "#f0dfb2"
+		if value <= get_resource_warning_threshold(resource_name):
+			value_color = "#d09347"
 		if icon_path != "":
-			text += "[img=18x18]%s[/img] %s: %d\n" % [icon_path, label, village_state.get_resource(resource_name)]
+			text += "[img=18x18]%s[/img] %s: [color=%s]%d[/color]\n" % [icon_path, label, value_color, value]
 		else:
-			text += "%s: %d\n" % [label, village_state.get_resource(resource_name)]
-	text += "\n[b]Último balance[/b]\n"
+			text += "%s: [color=%s]%d[/color]\n" % [label, value_color, value]
+	text += "\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n[b]Último balance[/b]\n"
 	if village_state.last_daily_resource_changes.is_empty():
-		text += "Aún no hay balance diario."
+		text += "[color=#8d8062]Aún no hay balance diario.[/color]"
 	else:
 		for change: Dictionary in village_state.last_daily_resource_changes:
-			text += "• %s %+d (%s)\n" % [String(change["resource"]).capitalize(), int(change["delta"]), String(change.get("source", "aldea"))]
+			var delta := int(change["delta"])
+			var color := "#d09347"
+			if delta >= 0:
+				color = "#8aac73"
+			text += "[color=%s]• %s %+d[/color] [color=#8d8062](%s)[/color]\n" % [color, String(change["resource"]).capitalize(), delta, String(change.get("source", "aldea"))]
 	return text
+
+func format_job_status_badge(line: String) -> String:
+	if line.ends_with("activo"):
+		return "[color=#8aac73]● ACTIVO[/color]  %s" % line.replace(" — activo", "")
+	if line.ends_with("riesgo"):
+		return "[color=#d09347]● RIESGO[/color]  %s" % line.replace(" — riesgo", "")
+	if line.ends_with("bloqueado"):
+		return "[color=#a33b35]● BLOQUEADO[/color]  %s" % line.replace(" — bloqueado", "")
+	return line
+
+func get_resource_warning_threshold(resource_name: String) -> int:
+	if resource_name == "comida":
+		return 35
+	if resource_name == "madera":
+		return 12
+	if resource_name == "hierro":
+		return 3
+	if resource_name == "medicina":
+		return 5
+	if resource_name == "seguridad":
+		return 20
+	return -1
 
 func colorize_job_status_line(line: String) -> String:
 	if line.ends_with("activo"):

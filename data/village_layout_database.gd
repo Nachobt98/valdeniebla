@@ -11,10 +11,17 @@ static func get_building_layouts() -> Dictionary:
 		},
 		"well": {
 			"label": "POZO",
-			"position": Vector2(0.50, 0.45),
+			"position": Vector2(0.50, 0.47),
 			"size": Vector2(0.07, 0.07),
 			"roof": Color(0.16, 0.24, 0.25, 1.0),
 			"body": Color(0.18, 0.18, 0.16, 1.0)
+		},
+		"communal_house": {
+			"label": "CASA COMUNAL",
+			"position": Vector2(0.50, 0.32),
+			"size": Vector2(0.12, 0.10),
+			"roof": Color(0.27, 0.18, 0.10, 1.0),
+			"body": Color(0.23, 0.19, 0.14, 1.0)
 		},
 		"tavern": {
 			"label": "TABERNA",
@@ -37,6 +44,20 @@ static func get_building_layouts() -> Dictionary:
 			"roof": Color(0.16, 0.16, 0.15, 1.0),
 			"body": Color(0.25, 0.24, 0.20, 1.0)
 		},
+		"healers_house": {
+			"label": "CURAS",
+			"position": Vector2(0.43, 0.69),
+			"size": Vector2(0.10, 0.10),
+			"roof": Color(0.18, 0.27, 0.20, 1.0),
+			"body": Color(0.21, 0.22, 0.17, 1.0)
+		},
+		"storehouse": {
+			"label": "ALMACEN",
+			"position": Vector2(0.36, 0.50),
+			"size": Vector2(0.10, 0.09),
+			"roof": Color(0.24, 0.17, 0.09, 1.0),
+			"body": Color(0.20, 0.15, 0.10, 1.0)
+		},
 		"pastures": {
 			"label": "PRADOS",
 			"position": Vector2(0.78, 0.58),
@@ -57,6 +78,11 @@ static func get_paths() -> Array[PackedVector2Array]:
 		]),
 		PackedVector2Array([
 			Vector2(0.50, 0.47),
+			Vector2(0.50, 0.39),
+			Vector2(0.50, 0.32)
+		]),
+		PackedVector2Array([
+			Vector2(0.50, 0.47),
 			Vector2(0.47, 0.58),
 			Vector2(0.43, 0.76)
 		]),
@@ -67,6 +93,8 @@ static func get_paths() -> Array[PackedVector2Array]:
 		]),
 		PackedVector2Array([
 			Vector2(0.33, 0.57),
+			Vector2(0.36, 0.50),
+			Vector2(0.40, 0.58),
 			Vector2(0.29, 0.67),
 			Vector2(0.24, 0.77)
 		])
@@ -80,6 +108,6 @@ static func get_npc_routines() -> Dictionary:
 		"bran": ["farms", "well", "farms"],
 		"lysa": ["pastures", "well", "pastures"],
 		"tomas": ["chapel", "well", "chapel"],
-		"elowen": ["chapel", "well", "tavern"],
-		"oren": ["well", "tavern", "chapel"]
+		"elowen": ["healers_house", "well", "chapel"],
+		"oren": ["communal_house", "well", "tavern"]
 	}
