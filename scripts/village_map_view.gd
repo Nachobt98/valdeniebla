@@ -14,6 +14,7 @@ var selected_building_id := ""
 var selected_npc_id := ""
 var routine_time := 0.0
 var fog_phase := 0.0
+var building_statuses: Dictionary = {}
 
 const NPC_COLORS := {
 	"aldric": Color(0.66, 0.30, 0.18, 1.0),
@@ -35,6 +36,10 @@ func set_npcs(npcs: Dictionary) -> void:
 	npc_names.clear()
 	for npc_id: String in npcs.keys():
 		npc_names[npc_id] = String(npcs[npc_id].get("name", npc_id))
+	queue_redraw()
+
+func set_building_statuses(statuses: Dictionary) -> void:
+	building_statuses = statuses.duplicate(true)
 	queue_redraw()
 
 func select_building(building_id: String) -> void:
@@ -138,7 +143,7 @@ func draw_fields(viewport: Vector2) -> void:
 	draw_fence(field_rect.grow(8.0))
 
 func draw_warm_light_patches(viewport: Vector2) -> void:
-	for building_id in ["forge", "tavern", "chapel"]:
+	for building_id in ["forge", "tavern", "chapel", "communal_house", "healers_house"]:
 		var layout: Dictionary = buildings[building_id]
 		var center := to_screen(layout["position"], viewport)
 		var radius := viewport.y * (0.10 if building_id != "tavern" else 0.13)
@@ -169,6 +174,7 @@ func draw_building(building_id: String, layout: Dictionary, viewport: Vector2) -
 	draw_door(rect)
 	draw_windows(rect)
 	draw_building_details(building_id, rect)
+	draw_building_status_marker(building_id, rect)
 	draw_label(center + Vector2(0.0, rect.size.y * 0.58), String(layout["label"]), selected)
 	if building_id == "well":
 		draw_circle(center, minf(footprint.x, footprint.y) * 0.48, Color(0.09, 0.16, 0.17, 1.0))
@@ -206,6 +212,33 @@ func draw_building_details(building_id: String, rect: Rect2) -> void:
 			var sheep := rect.position + Vector2(rect.size.x * (0.25 + float(i) * 0.22), rect.size.y * 0.54)
 			draw_circle(sheep, 7.0, Color(0.76, 0.74, 0.62, 0.85))
 			draw_circle(sheep + Vector2(6.0, 1.0), 3.0, Color(0.19, 0.17, 0.13, 0.88))
+	elif building_id == "communal_house":
+		draw_rect(Rect2(rect.position + Vector2(rect.size.x * 0.14, rect.size.y * 0.68), Vector2(rect.size.x * 0.72, 5.0)), Color(0.62, 0.42, 0.20, 0.60))
+		draw_line(rect.position + Vector2(rect.size.x * 0.50, rect.size.y * 0.20), rect.position + Vector2(rect.size.x * 0.50, rect.size.y * 0.72), Color(0.80, 0.66, 0.36, 0.42), 2.0)
+		draw_circle(rect.position + Vector2(rect.size.x * 0.50, rect.size.y * 0.22), 7.0, Color(0.82, 0.62, 0.26, 0.22))
+	elif building_id == "healers_house":
+		for i in range(4):
+			var herb := rect.position + Vector2(rect.size.x * (0.18 + float(i) * 0.18), rect.size.y * 0.82)
+			draw_line(herb, herb + Vector2(0.0, -12.0), Color(0.36, 0.55, 0.28, 0.75), 2.0)
+			draw_circle(herb + Vector2(-3.0, -7.0), 3.0, Color(0.45, 0.68, 0.35, 0.7))
+			draw_circle(herb + Vector2(4.0, -9.0), 3.0, Color(0.45, 0.68, 0.35, 0.7))
+	elif building_id == "storehouse":
+		for i in range(3):
+			var crate := Rect2(rect.position + Vector2(rect.size.x * (0.16 + float(i) * 0.22), rect.size.y * 0.64), Vector2(17.0, 15.0))
+			draw_rect(crate, Color(0.37, 0.24, 0.11, 0.86))
+			draw_rect(crate, Color(0.78, 0.58, 0.27, 0.24), false, 1.0)
+
+func draw_building_status_marker(building_id: String, rect: Rect2) -> void:
+	var status := String(building_statuses.get(building_id, "activo"))
+	var color := Color(0.54, 0.68, 0.45, 1.0)
+	if status == "riesgo":
+		color = Color(0.82, 0.58, 0.28, 1.0)
+	elif status == "bloqueado":
+		color = Color(0.62, 0.23, 0.20, 1.0)
+	var marker_position := rect.position + Vector2(rect.size.x - 12.0, 10.0)
+	draw_circle(marker_position + Vector2(1.0, 2.0), 8.0, Color(0, 0, 0, 0.42))
+	draw_circle(marker_position, 6.0, color)
+	draw_circle(marker_position, 9.0, Color(color.r, color.g, color.b, 0.22), false, 2.0)
 
 func draw_door(rect: Rect2) -> void:
 	var door_size := Vector2(rect.size.x * 0.14, rect.size.y * 0.28)
@@ -226,6 +259,7 @@ func draw_settlement_props(viewport: Vector2) -> void:
 	draw_wood_stack(to_screen(Vector2(0.20, 0.49), viewport))
 	draw_wood_stack(to_screen(Vector2(0.38, 0.67), viewport))
 	draw_cart(to_screen(Vector2(0.61, 0.60), viewport))
+	draw_notice_board(to_screen(Vector2(0.54, 0.38), viewport))
 
 func draw_barrels(position: Vector2) -> void:
 	for i in range(3):
@@ -243,6 +277,12 @@ func draw_cart(position: Vector2) -> void:
 	draw_rect(Rect2(position, Vector2(34.0, 16.0)), Color(0.32, 0.20, 0.10, 0.85))
 	draw_circle(position + Vector2(8.0, 18.0), 5.0, Color(0.08, 0.06, 0.04, 0.9))
 	draw_circle(position + Vector2(27.0, 18.0), 5.0, Color(0.08, 0.06, 0.04, 0.9))
+
+func draw_notice_board(position: Vector2) -> void:
+	draw_rect(Rect2(position + Vector2(-14.0, -18.0), Vector2(28.0, 18.0)), Color(0.24, 0.13, 0.06, 0.86))
+	draw_rect(Rect2(position + Vector2(-11.0, -15.0), Vector2(22.0, 12.0)), Color(0.62, 0.45, 0.22, 0.44))
+	draw_line(position + Vector2(-10.0, 0.0), position + Vector2(-10.0, 18.0), Color(0.16, 0.09, 0.05, 0.9), 3.0)
+	draw_line(position + Vector2(10.0, 0.0), position + Vector2(10.0, 18.0), Color(0.16, 0.09, 0.05, 0.9), 3.0)
 
 func draw_fence(rect: Rect2) -> void:
 	var color := Color(0.23, 0.16, 0.08, 0.76)
