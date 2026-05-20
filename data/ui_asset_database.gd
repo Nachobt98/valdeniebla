@@ -49,7 +49,27 @@ static func get_map_building_asset_paths() -> Dictionary:
 		"forge": "res://assets/map/buildings/forge.png",
 		"tavern": "res://assets/map/buildings/tavern.png",
 		"communal_house": "res://assets/map/buildings/communal_house.png",
-		"chapel": "res://assets/map/buildings/chapel.png"
+		"chapel": "res://assets/map/buildings/chapel.png",
+		"well": "res://assets/map/buildings/well.png",
+		"storehouse": "res://assets/map/buildings/storehouse.png",
+		"farms": "res://assets/map/buildings/farms.png",
+		"healers_house": "res://assets/map/buildings/healers_house.png",
+		"pastures": "res://assets/map/buildings/pastures.png"
+	}
+
+static func get_map_environment_asset_paths() -> Dictionary:
+	return {
+		"ground_moss": "res://assets/map/environment/ground_moss.png",
+		"road_curve": "res://assets/map/environment/road_curve.png",
+		"forest_edge": "res://assets/map/environment/forest_edge.png",
+		"fog_wisp": "res://assets/map/environment/fog_wisp.png"
+	}
+
+static func get_map_prop_asset_paths() -> Dictionary:
+	return {
+		"hay_sacks": "res://assets/map/props/hay_sacks.png",
+		"barrels_crates": "res://assets/map/props/barrels_crates.png",
+		"woodpile": "res://assets/map/props/woodpile.png"
 	}
 
 static func get_portrait_paths() -> Dictionary:

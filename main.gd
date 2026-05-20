@@ -459,17 +459,17 @@ func clamp_map_popup_position(position: Vector2) -> Vector2:
 func create_village_overview_panel() -> void:
 	village_overview_panel = PanelContainer.new()
 	village_overview_panel.name = "VillageOverviewPanel"
-	village_overview_panel.custom_minimum_size = Vector2(282, 0)
+	village_overview_panel.custom_minimum_size = Vector2(222, 0)
 	village_overview_panel.anchor_left = 1.0
 	village_overview_panel.anchor_top = 0.0
 	village_overview_panel.anchor_right = 1.0
 	village_overview_panel.anchor_bottom = 0.0
-	village_overview_panel.offset_left = -306.0
-	village_overview_panel.offset_top = 132.0
+	village_overview_panel.offset_left = -246.0
+	village_overview_panel.offset_top = 38.0
 	village_overview_panel.offset_right = -24.0
-	village_overview_panel.offset_bottom = 296.0
+	village_overview_panel.offset_bottom = 154.0
 	village_overview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	village_overview_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.022, 0.78), Color(0.70, 0.58, 0.34, 0.32), 8))
+	village_overview_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.022, 0.66), Color(0.70, 0.58, 0.34, 0.26), 8))
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
 	margin.add_theme_constant_override("margin_top", 10)
@@ -477,7 +477,7 @@ func create_village_overview_panel() -> void:
 	margin.add_theme_constant_override("margin_bottom", 10)
 	village_overview_panel.add_child(margin)
 	village_overview_content = VBoxContainer.new()
-	village_overview_content.add_theme_constant_override("separation", 8)
+	village_overview_content.add_theme_constant_override("separation", 4)
 	margin.add_child(village_overview_content)
 	map_content.add_child(village_overview_panel)
 
@@ -494,18 +494,18 @@ func update_village_overview_panel() -> void:
 func add_overview_title() -> void:
 	var title := Label.new()
 	title.text = "Consejo"
-	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(0.96, 0.86, 0.60))
 	village_overview_content.add_child(title)
 	var subtitle := Label.new()
 	subtitle.text = "Prioridad: %s" % MonthlyStrategyDatabase.get_strategy_name(village_state.current_strategy_id)
-	subtitle.add_theme_font_size_override("font_size", 12)
+	subtitle.add_theme_font_size_override("font_size", 11)
 	subtitle.add_theme_color_override("font_color", Color(0.65, 0.58, 0.44))
 	village_overview_content.add_child(subtitle)
 
 func add_overview_mood_row() -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 5)
 	village_overview_content.add_child(row)
 	row.add_child(make_metric_card("Ánimo", village_state.get_average_state("ánimo"), false))
 	row.add_child(make_metric_card("Estrés", village_state.get_average_state("estrés"), true))
@@ -513,12 +513,12 @@ func add_overview_mood_row() -> void:
 func make_metric_card(label_text: String, value: int, inverted: bool) -> PanelContainer:
 	var card := PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.add_theme_stylebox_override("panel", make_panel_style(Color(0.035, 0.041, 0.038, 0.82), Color(0.50, 0.42, 0.26, 0.30), 7))
+	card.add_theme_stylebox_override("panel", make_panel_style(Color(0.035, 0.041, 0.038, 0.68), Color(0.50, 0.42, 0.26, 0.22), 7))
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 5)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 5)
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_top", 3)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_bottom", 3)
 	card.add_child(margin)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 3)
@@ -530,7 +530,7 @@ func make_metric_card(label_text: String, value: int, inverted: bool) -> PanelCo
 	content.add_child(name_label)
 	var value_label := Label.new()
 	value_label.text = "%d/100" % value
-	value_label.add_theme_font_size_override("font_size", 16)
+	value_label.add_theme_font_size_override("font_size", 14)
 	value_label.add_theme_color_override("font_color", Color.html(get_state_color(value, inverted)))
 	content.add_child(value_label)
 	return card
@@ -542,6 +542,7 @@ func add_overview_warning_row() -> void:
 	text.scroll_active = false
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.text = get_village_warning_text()
+	text.add_theme_font_size_override("normal_font_size", 13)
 	village_overview_content.add_child(text)
 
 func get_village_warning_text() -> String:
