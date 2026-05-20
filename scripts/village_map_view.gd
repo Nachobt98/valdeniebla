@@ -13,6 +13,8 @@ var npc_routines := VillageLayoutDatabase.get_npc_routines()
 var building_textures: Dictionary = {}
 var npc_textures: Dictionary = {}
 var status_icon_textures: Dictionary = {}
+var environment_textures: Dictionary = {}
+var prop_textures: Dictionary = {}
 var npc_names: Dictionary = {}
 var selected_building_id := ""
 var selected_npc_id := ""
@@ -44,6 +46,8 @@ func load_map_asset_textures() -> void:
 	building_textures = load_texture_dictionary(UiAssetDatabase.get_map_building_asset_paths())
 	npc_textures = load_texture_dictionary(UiAssetDatabase.get_map_npc_sprite_paths())
 	status_icon_textures = load_texture_dictionary(UiAssetDatabase.get_status_icon_paths())
+	environment_textures = load_texture_dictionary(UiAssetDatabase.get_map_environment_asset_paths())
+	prop_textures = load_texture_dictionary(UiAssetDatabase.get_map_prop_asset_paths())
 
 func load_texture_dictionary(paths_by_id: Dictionary) -> Dictionary:
 	var textures := {}
@@ -116,6 +120,7 @@ func _draw() -> void:
 	if viewport.x <= 0.0 or viewport.y <= 0.0:
 		return
 	draw_ground(viewport)
+	draw_ground_asset_patches(viewport)
 	draw_distant_mist(viewport)
 	draw_forests(viewport)
 	draw_paths(viewport)
@@ -132,16 +137,31 @@ func _draw() -> void:
 
 func draw_ground(viewport: Vector2) -> void:
 	draw_rect(Rect2(Vector2.ZERO, viewport), Color(0.13, 0.17, 0.13, 1.0))
-	draw_rect(Rect2(Vector2(0.0, viewport.y * 0.12), Vector2(viewport.x, viewport.y * 0.76)), Color(0.20, 0.26, 0.17, 0.80))
-	draw_rect(Rect2(Vector2(0.0, viewport.y * 0.52), Vector2(viewport.x, viewport.y * 0.48)), Color(0.18, 0.22, 0.15, 0.32))
+	draw_rect(Rect2(Vector2(0.0, viewport.y * 0.12), Vector2(viewport.x, viewport.y * 0.76)), Color(0.19, 0.25, 0.16, 0.72))
+	draw_rect(Rect2(Vector2(0.0, viewport.y * 0.52), Vector2(viewport.x, viewport.y * 0.48)), Color(0.16, 0.20, 0.14, 0.30))
 	for i in range(20):
 		var x := fmod(float(i * 157), viewport.x)
 		var y := fmod(float(i * 89), viewport.y)
-		draw_circle(Vector2(x, y), 52.0 + float(i % 5) * 18.0, Color(0.08, 0.14, 0.09, 0.16))
+		draw_circle(Vector2(x, y), 52.0 + float(i % 5) * 18.0, Color(0.08, 0.13, 0.08, 0.11))
 	for i in range(28):
 		var x := fmod(float(i * 97 + 41), viewport.x)
 		var y := fmod(float(i * 53 + 17), viewport.y)
 		draw_line(Vector2(x, y), Vector2(x + 26.0, y + 5.0), Color(0.43, 0.37, 0.20, 0.12), 2.0)
+
+func draw_ground_asset_patches(viewport: Vector2) -> void:
+	if not environment_textures.has("ground_moss"):
+		return
+	var texture: Texture2D = environment_textures["ground_moss"]
+	for patch in [
+		{"position": Vector2(0.20, 0.66), "size": Vector2(0.24, 0.18), "alpha": 0.42},
+		{"position": Vector2(0.48, 0.64), "size": Vector2(0.22, 0.17), "alpha": 0.30},
+		{"position": Vector2(0.70, 0.55), "size": Vector2(0.27, 0.18), "alpha": 0.26},
+		{"position": Vector2(0.30, 0.38), "size": Vector2(0.21, 0.16), "alpha": 0.24}
+	]:
+		var center := to_screen(patch["position"], viewport)
+		var patch_size: Vector2 = patch["size"]
+		var draw_size := Vector2(patch_size.x * viewport.x, patch_size.y * viewport.y)
+		draw_texture_rect(texture, Rect2(center - draw_size * 0.5, draw_size), false, Color(1, 1, 1, float(patch["alpha"])))
 
 func draw_distant_mist(viewport: Vector2) -> void:
 	for i in range(5):
@@ -151,6 +171,17 @@ func draw_distant_mist(viewport: Vector2) -> void:
 		draw_rect(rect, Color(0.52, 0.58, 0.52, 0.035 + float(i % 2) * 0.015))
 
 func draw_forests(viewport: Vector2) -> void:
+	if environment_textures.has("forest_edge"):
+		var forest_texture: Texture2D = environment_textures["forest_edge"]
+		for patch in [
+			{"position": Vector2(0.08, 0.19), "size": Vector2(0.22, 0.24), "alpha": 0.60},
+			{"position": Vector2(0.88, 0.24), "size": Vector2(0.22, 0.24), "alpha": 0.58},
+			{"position": Vector2(0.88, 0.82), "size": Vector2(0.20, 0.22), "alpha": 0.54}
+		]:
+			var center := to_screen(patch["position"], viewport)
+			var patch_size: Vector2 = patch["size"]
+			var draw_size := Vector2(patch_size.x * viewport.x, patch_size.y * viewport.y)
+			draw_texture_rect(forest_texture, Rect2(center - draw_size * 0.5, draw_size), false, Color(1, 1, 1, float(patch["alpha"])))
 	for forest in [
 		{"position": Vector2(0.09, 0.22), "radius": 0.24},
 		{"position": Vector2(0.88, 0.24), "radius": 0.20},
@@ -179,6 +210,16 @@ func draw_paths(viewport: Vector2) -> void:
 		draw_polyline(screen_path, Color(0.42, 0.31, 0.18, 0.90), 25.0, true)
 		draw_polyline(screen_path, Color(0.62, 0.50, 0.31, 0.24), 5.0, true)
 		draw_polyline(screen_path, Color(0.25, 0.18, 0.10, 0.28), 1.4, true)
+	if environment_textures.has("road_curve"):
+		var texture: Texture2D = environment_textures["road_curve"]
+		for patch in [
+			{"position": Vector2(0.34, 0.58), "size": Vector2(0.16, 0.10), "alpha": 0.28},
+			{"position": Vector2(0.50, 0.52), "size": Vector2(0.14, 0.12), "alpha": 0.22}
+		]:
+			var center := to_screen(patch["position"], viewport)
+			var patch_size: Vector2 = patch["size"]
+			var draw_size := Vector2(patch_size.x * viewport.x, patch_size.y * viewport.y)
+			draw_texture_rect(texture, Rect2(center - draw_size * 0.5, draw_size), false, Color(1, 1, 1, float(patch["alpha"])))
 
 func draw_fields(viewport: Vector2) -> void:
 	var field_rect := Rect2(to_screen(Vector2(0.26, 0.66), viewport), Vector2(viewport.x * 0.18, viewport.y * 0.16))
@@ -220,7 +261,7 @@ func draw_building(building_id: String, layout: Dictionary, viewport: Vector2) -
 	elif hovered:
 		outline_alpha = 0.78
 		outline_width = 3.0
-	draw_rect(rect, Color(0.81, 0.69, 0.42, outline_alpha), false, outline_width)
+	draw_organic_highlight(rect, Color(0.81, 0.69, 0.42, outline_alpha), outline_width)
 	if not uses_texture:
 		draw_door(rect)
 		draw_windows(rect)
@@ -229,24 +270,48 @@ func draw_building(building_id: String, layout: Dictionary, viewport: Vector2) -
 	if selected or hovered or not uses_texture:
 		draw_label(center + Vector2(0.0, rect.size.y * 0.58), String(layout["label"]), selected)
 	if hovered:
-		draw_rect(rect.grow(8.0), Color(0.95, 0.78, 0.38, 0.22), false, 3.0)
-	if building_id == "well":
+		draw_organic_highlight(rect.grow(8.0), Color(0.95, 0.78, 0.38, 0.22), 3.0)
+	if building_id == "well" and not uses_texture:
 		draw_circle(center, minf(footprint.x, footprint.y) * 0.48, Color(0.09, 0.16, 0.17, 1.0))
 		draw_circle(center, minf(footprint.x, footprint.y) * 0.28, Color(0.17, 0.31, 0.33, 0.9))
-	if building_id == "pastures":
+	if building_id == "pastures" and not uses_texture:
 		draw_fence(rect.grow(28.0))
 	if building_id == "chapel":
 		draw_chapel_yard(rect)
 
 func draw_building_texture(building_id: String, rect: Rect2) -> void:
 	var texture: Texture2D = building_textures[building_id]
-	var draw_rect_size := rect.size * 1.85
+	var draw_rect_size := rect.size * 1.55
 	if building_id == "chapel":
-		draw_rect_size = rect.size * 1.75
+		draw_rect_size = rect.size * 1.45
 	elif building_id == "communal_house":
-		draw_rect_size = rect.size * 1.70
-	var draw_rect_position := rect.get_center() - draw_rect_size * 0.5 + Vector2(0.0, -rect.size.y * 0.18)
+		draw_rect_size = rect.size * 1.46
+	elif building_id == "well":
+		draw_rect_size = rect.size * 2.20
+	elif building_id == "pastures":
+		draw_rect_size = rect.size * 1.35
+	elif building_id == "farms":
+		draw_rect_size = rect.size * 1.45
+	var y_offset := -rect.size.y * 0.18
+	if building_id == "well":
+		y_offset = -rect.size.y * 0.34
+	elif building_id == "pastures":
+		y_offset = -rect.size.y * 0.08
+	var draw_rect_position := rect.get_center() - draw_rect_size * 0.5 + Vector2(0.0, y_offset)
 	draw_texture_rect(texture, Rect2(draw_rect_position, draw_rect_size), false)
+
+func draw_organic_highlight(rect: Rect2, color: Color, width: float) -> void:
+	var points := PackedVector2Array([
+		rect.position + Vector2(rect.size.x * 0.10, rect.size.y * 0.14),
+		rect.position + Vector2(rect.size.x * 0.50, -rect.size.y * 0.12),
+		rect.position + Vector2(rect.size.x * 0.92, rect.size.y * 0.16),
+		rect.position + Vector2(rect.size.x * 1.04, rect.size.y * 0.52),
+		rect.position + Vector2(rect.size.x * 0.84, rect.size.y * 0.96),
+		rect.position + Vector2(rect.size.x * 0.18, rect.size.y * 0.98),
+		rect.position + Vector2(-rect.size.x * 0.04, rect.size.y * 0.54),
+		rect.position + Vector2(rect.size.x * 0.10, rect.size.y * 0.14)
+	])
+	draw_polyline(points, color, width, true)
 
 func draw_procedural_building(layout: Dictionary, rect: Rect2) -> void:
 	draw_rect(rect.grow(13.0), Color(0.02, 0.018, 0.014, 0.76))
@@ -347,12 +412,19 @@ func draw_chapel_yard(rect: Rect2) -> void:
 		draw_rect(Rect2(grave_position, Vector2(8.0, 13.0)), Color(0.40, 0.39, 0.34, 0.8))
 
 func draw_settlement_props(viewport: Vector2) -> void:
-	draw_barrels(to_screen(Vector2(0.64, 0.42), viewport))
+	draw_prop_texture("barrels_crates", to_screen(Vector2(0.64, 0.42), viewport), Vector2(58.0, 42.0))
 	draw_barrels(to_screen(Vector2(0.24, 0.44), viewport))
-	draw_wood_stack(to_screen(Vector2(0.20, 0.49), viewport))
-	draw_wood_stack(to_screen(Vector2(0.38, 0.67), viewport))
+	draw_prop_texture("woodpile", to_screen(Vector2(0.20, 0.49), viewport), Vector2(70.0, 46.0))
+	draw_prop_texture("woodpile", to_screen(Vector2(0.38, 0.67), viewport), Vector2(66.0, 42.0))
+	draw_prop_texture("hay_sacks", to_screen(Vector2(0.29, 0.72), viewport), Vector2(76.0, 58.0))
 	draw_cart(to_screen(Vector2(0.61, 0.60), viewport))
 	draw_notice_board(to_screen(Vector2(0.54, 0.38), viewport))
+
+func draw_prop_texture(prop_id: String, position: Vector2, draw_size: Vector2) -> void:
+	if not prop_textures.has(prop_id):
+		return
+	var texture: Texture2D = prop_textures[prop_id]
+	draw_texture_rect(texture, Rect2(position - draw_size * 0.5, draw_size), false)
 
 func draw_barrels(position: Vector2) -> void:
 	for i in range(3):
@@ -426,14 +498,14 @@ func draw_npc_sprite(npc_id: String, position: Vector2, selected: bool) -> void:
 
 func draw_npc_texture(npc_id: String, position: Vector2, selected: bool) -> void:
 	var texture: Texture2D = npc_textures[npc_id]
-	var draw_size := Vector2(38.0, 52.0)
+	var draw_size := Vector2(43.0, 59.0)
 	if selected:
 		draw_size *= 1.14
 	draw_circle(position + Vector2(1.0, 14.0), draw_size.x * 0.36, Color(0, 0, 0, 0.36))
 	var draw_position := position - Vector2(draw_size.x * 0.5, draw_size.y * 0.72)
 	draw_texture_rect(texture, Rect2(draw_position, draw_size), false)
 	if selected:
-		draw_circle(position + Vector2(0.0, 5.0), 20.0, Color(0.92, 0.76, 0.36, 0.22), false, 2.0)
+		draw_circle(position + Vector2(0.0, 5.0), 22.0, Color(0.92, 0.76, 0.36, 0.24), false, 2.0)
 
 func draw_npc_role_prop(npc_id: String, position: Vector2, scale: float) -> void:
 	var dark := Color(0.10, 0.07, 0.045, 0.88)
@@ -476,6 +548,17 @@ func draw_vignette(viewport: Vector2) -> void:
 	draw_rect(Rect2(Vector2(viewport.x - 32.0, 0.0), Vector2(32.0, viewport.y)), Color(0.015, 0.018, 0.018, 0.62))
 
 func draw_low_fog(viewport: Vector2) -> void:
+	if environment_textures.has("fog_wisp"):
+		var fog_texture: Texture2D = environment_textures["fog_wisp"]
+		for patch in [
+			{"position": Vector2(0.19, 0.24), "size": Vector2(0.20, 0.08), "alpha": 0.18},
+			{"position": Vector2(0.60, 0.38), "size": Vector2(0.22, 0.08), "alpha": 0.16},
+			{"position": Vector2(0.77, 0.76), "size": Vector2(0.24, 0.09), "alpha": 0.14}
+		]:
+			var center := to_screen(patch["position"], viewport)
+			var patch_size: Vector2 = patch["size"]
+			var draw_size := Vector2(patch_size.x * viewport.x, patch_size.y * viewport.y)
+			draw_texture_rect(fog_texture, Rect2(center - draw_size * 0.5, draw_size), false, Color(1, 1, 1, float(patch["alpha"])))
 	for i in range(7):
 		var y := viewport.y * (0.20 + float(i) * 0.105)
 		var drift := sin((fog_phase + float(i) * 0.13) * TAU) * viewport.x * 0.035
