@@ -128,7 +128,7 @@ func apply_visual_map_style() -> void:
 	map_title_label.add_theme_constant_override("shadow_offset_x", 2)
 	map_title_label.add_theme_constant_override("shadow_offset_y", 2)
 	map_hint_label.add_theme_color_override("default_color", Color(0.86, 0.80, 0.66))
-	map_status_label.add_theme_stylebox_override("normal", make_hud_panel_style(Color(0.025, 0.031, 0.028, 0.62), Color(0.64, 0.52, 0.30, 0.24), 8))
+	map_status_label.visible = false
 
 func make_hud_panel_style(bg_color: Color, border_color: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -649,28 +649,7 @@ func update_title() -> void:
 	]
 
 func update_map_status() -> void:
-	var average_mood := village_state.get_average_state("ánimo")
-	var average_stress := village_state.get_average_state("estrés")
-	var mood_color := "#a33b35"
-	if average_mood >= 55:
-		mood_color = "#8aac73"
-	elif average_mood >= 35:
-		mood_color = "#d09347"
-	var stress_color := "#a33b35"
-	if average_stress <= 35:
-		stress_color = "#8aac73"
-	elif average_stress <= 60:
-		stress_color = "#d09347"
-	map_status_label.text = "[center][font_size=21][b]Pulso de la aldea[/b][/font_size]\n[color=%s]Ánimo %d/100[/color]   [color=%s]Estrés %d/100[/color]   Habitantes %d\n[color=#d8c28a]%s[/color]   Comida %d   Seguridad %d[/center]" % [
-		mood_color,
-		average_mood,
-		stress_color,
-		average_stress,
-		village_state.npc_order.size(),
-		MonthlyStrategyDatabase.get_strategy_name(village_state.current_strategy_id),
-		village_state.get_resource("comida"),
-		village_state.get_resource("seguridad")
-	]
+	map_status_label.text = ""
 
 func clear_dynamic_context_buttons() -> void:
 	for button: Button in dynamic_context_buttons:
