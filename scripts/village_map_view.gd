@@ -1,8 +1,8 @@
 extends Control
 class_name VillageMapView
 
-signal building_selected(building_id: String)
-signal npc_selected(npc_id: String)
+signal building_selected(building_id: String, screen_position: Vector2)
+signal npc_selected(npc_id: String, screen_position: Vector2)
 
 const VillageLayoutDatabase = preload("res://data/village_layout_database.gd")
 
@@ -12,6 +12,9 @@ var npc_routines := VillageLayoutDatabase.get_npc_routines()
 var npc_names: Dictionary = {}
 var selected_building_id := ""
 var selected_npc_id := ""
+var hovered_building_id := ""
+var hovered_npc_id := ""
+var map_mode := "normal"
 var routine_time := 0.0
 var fog_phase := 0.0
 var building_statuses: Dictionary = {}
@@ -42,6 +45,10 @@ func set_building_statuses(statuses: Dictionary) -> void:
 	building_statuses = statuses.duplicate(true)
 	queue_redraw()
 
+func set_map_mode(mode: String) -> void:
+	map_mode = mode
+	queue_redraw()
+
 func select_building(building_id: String) -> void:
 	selected_building_id = building_id
 	selected_npc_id = ""
@@ -58,15 +65,32 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		update_hover_state(Vector2(event.position))
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var click_position := Vector2(event.position)
 		var npc_id := get_npc_at_position(click_position)
 		if npc_id != "":
-			npc_selected.emit(npc_id)
+			npc_selected.emit(npc_id, click_position)
 			return
 		var building_id := get_building_at_position(click_position)
 		if building_id != "":
-			building_selected.emit(building_id)
+			building_selected.emit(building_id, click_position)
+
+func update_hover_state(position: Vector2) -> void:
+	var npc_id := get_npc_at_position(position)
+	var building_id := ""
+	if npc_id == "":
+		building_id = get_building_at_position(position)
+	if hovered_npc_id == npc_id and hovered_building_id == building_id:
+		return
+	hovered_npc_id = npc_id
+	hovered_building_id = building_id
+	if hovered_npc_id != "" or hovered_building_id != "":
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	else:
+		mouse_default_cursor_shape = Control.CURSOR_ARROW
+	queue_redraw()
 
 func _draw() -> void:
 	var viewport := size
@@ -77,12 +101,15 @@ func _draw() -> void:
 	draw_forests(viewport)
 	draw_paths(viewport)
 	draw_fields(viewport)
+	draw_map_mode_overlay(viewport)
 	draw_warm_light_patches(viewport)
 	draw_buildings(viewport)
 	draw_settlement_props(viewport)
 	draw_npcs(viewport)
+	draw_ambient_specks(viewport)
 	draw_low_fog(viewport)
 	draw_vignette(viewport)
+	draw_hover_tooltip(viewport)
 
 func draw_ground(viewport: Vector2) -> void:
 	draw_rect(Rect2(Vector2.ZERO, viewport), Color(0.13, 0.17, 0.13, 1.0))
@@ -160,6 +187,7 @@ func draw_building(building_id: String, layout: Dictionary, viewport: Vector2) -
 	var footprint := Vector2(normalized_size.x * viewport.x, normalized_size.y * viewport.y)
 	var rect := Rect2(center - footprint * 0.5, footprint)
 	var selected := building_id == selected_building_id
+	var hovered := building_id == hovered_building_id
 	draw_rect(rect.grow(13.0), Color(0.02, 0.018, 0.014, 0.76))
 	draw_rect(rect.grow(5.0), Color(0.46, 0.38, 0.22, 0.08))
 	draw_rect(rect, layout["body"])
@@ -170,12 +198,22 @@ func draw_building(building_id: String, layout: Dictionary, viewport: Vector2) -
 		rect.position + Vector2(rect.size.x, rect.size.y * 0.50),
 		rect.position + Vector2(0.0, rect.size.y * 0.50)
 	]), layout["roof"])
-	draw_rect(rect, Color(0.81, 0.69, 0.42, 0.32 if not selected else 0.90), false, 2.0 if not selected else 4.0)
+	var outline_alpha := 0.32
+	var outline_width := 2.0
+	if selected:
+		outline_alpha = 0.90
+		outline_width = 4.0
+	elif hovered:
+		outline_alpha = 0.78
+		outline_width = 3.0
+	draw_rect(rect, Color(0.81, 0.69, 0.42, outline_alpha), false, outline_width)
 	draw_door(rect)
 	draw_windows(rect)
 	draw_building_details(building_id, rect)
 	draw_building_status_marker(building_id, rect)
 	draw_label(center + Vector2(0.0, rect.size.y * 0.58), String(layout["label"]), selected)
+	if hovered:
+		draw_rect(rect.grow(8.0), Color(0.95, 0.78, 0.38, 0.22), false, 3.0)
 	if building_id == "well":
 		draw_circle(center, minf(footprint.x, footprint.y) * 0.48, Color(0.09, 0.16, 0.17, 1.0))
 		draw_circle(center, minf(footprint.x, footprint.y) * 0.28, Color(0.17, 0.31, 0.33, 0.9))
@@ -239,6 +277,18 @@ func draw_building_status_marker(building_id: String, rect: Rect2) -> void:
 	draw_circle(marker_position + Vector2(1.0, 2.0), 8.0, Color(0, 0, 0, 0.42))
 	draw_circle(marker_position, 6.0, color)
 	draw_circle(marker_position, 9.0, Color(color.r, color.g, color.b, 0.22), false, 2.0)
+	if status == "riesgo":
+		draw_colored_polygon(PackedVector2Array([
+			marker_position + Vector2(0.0, -5.0),
+			marker_position + Vector2(5.0, 5.0),
+			marker_position + Vector2(-5.0, 5.0)
+		]), Color(0.09, 0.06, 0.03, 0.72))
+	elif status == "bloqueado":
+		draw_line(marker_position + Vector2(-4.0, -4.0), marker_position + Vector2(4.0, 4.0), Color(0.08, 0.04, 0.04, 0.82), 2.0)
+		draw_line(marker_position + Vector2(4.0, -4.0), marker_position + Vector2(-4.0, 4.0), Color(0.08, 0.04, 0.04, 0.82), 2.0)
+	else:
+		draw_line(marker_position + Vector2(-4.0, 0.0), marker_position + Vector2(-1.0, 4.0), Color(0.06, 0.09, 0.05, 0.80), 2.0)
+		draw_line(marker_position + Vector2(-1.0, 4.0), marker_position + Vector2(5.0, -4.0), Color(0.06, 0.09, 0.05, 0.80), 2.0)
 
 func draw_door(rect: Rect2) -> void:
 	var door_size := Vector2(rect.size.x * 0.14, rect.size.y * 0.28)
@@ -284,6 +334,15 @@ func draw_notice_board(position: Vector2) -> void:
 	draw_line(position + Vector2(-10.0, 0.0), position + Vector2(-10.0, 18.0), Color(0.16, 0.09, 0.05, 0.9), 3.0)
 	draw_line(position + Vector2(10.0, 0.0), position + Vector2(10.0, 18.0), Color(0.16, 0.09, 0.05, 0.9), 3.0)
 
+func draw_ambient_specks(viewport: Vector2) -> void:
+	for i in range(16):
+		var x := fmod(float(i * 113 + 29), viewport.x)
+		var y := fmod(float(i * 67 + 47), viewport.y)
+		var shimmer := 0.35 + sin((fog_phase + float(i) * 0.17) * TAU) * 0.25
+		if y < viewport.y * 0.18 or y > viewport.y * 0.86:
+			continue
+		draw_circle(Vector2(x, y), 1.4 + shimmer, Color(0.76, 0.70, 0.48, 0.08 + shimmer * 0.05))
+
 func draw_fence(rect: Rect2) -> void:
 	var color := Color(0.23, 0.16, 0.08, 0.76)
 	draw_rect(rect, color, false, 2.0)
@@ -296,14 +355,54 @@ func draw_npcs(viewport: Vector2) -> void:
 	for npc_id: String in npc_routines.keys():
 		var position := get_npc_position(npc_id, viewport)
 		var selected := npc_id == selected_npc_id
-		var body_color: Color = NPC_COLORS.get(npc_id, Color(0.82, 0.72, 0.42, 1.0))
-		draw_circle(position + Vector2(2.0, 5.0), 12.0, Color(0, 0, 0, 0.42))
-		draw_circle(position, 8.0 if not selected else 11.0, body_color)
-		draw_circle(position + Vector2(0.0, -10.0), 5.0, Color(0.80, 0.66, 0.52, 1.0))
-		draw_line(position + Vector2(-5.0, 5.0), position + Vector2(5.0, 5.0), Color(0.12, 0.08, 0.05, 0.55), 2.0)
-		if selected:
-			draw_circle(position, 15.0, Color(0.92, 0.76, 0.36, 0.24), false, 2.0)
-		draw_label(position + Vector2(0.0, 17.0), String(npc_names.get(npc_id, npc_id)), selected, 13)
+		var hovered := npc_id == hovered_npc_id
+		draw_npc_sprite(npc_id, position, selected)
+		if selected or hovered:
+			draw_label(position + Vector2(0.0, 17.0), String(npc_names.get(npc_id, npc_id)), selected or hovered, 13)
+
+func draw_npc_sprite(npc_id: String, position: Vector2, selected: bool) -> void:
+	var body_color: Color = NPC_COLORS.get(npc_id, Color(0.82, 0.72, 0.42, 1.0))
+	var scale := 1.0
+	if selected:
+		scale = 1.16
+	draw_circle(position + Vector2(2.0, 6.0), 12.0 * scale, Color(0, 0, 0, 0.42))
+	draw_colored_polygon(PackedVector2Array([
+		position + Vector2(-7.0, 4.0) * scale,
+		position + Vector2(7.0, 4.0) * scale,
+		position + Vector2(10.0, 15.0) * scale,
+		position + Vector2(-10.0, 15.0) * scale
+	]), body_color)
+	draw_circle(position + Vector2(0.0, -6.0) * scale, 5.0 * scale, Color(0.80, 0.66, 0.52, 1.0))
+	draw_line(position + Vector2(-6.0, 8.0) * scale, position + Vector2(6.0, 8.0) * scale, Color(0.12, 0.08, 0.05, 0.55), 2.0)
+	draw_npc_role_prop(npc_id, position, scale)
+	if selected:
+		draw_circle(position + Vector2(0.0, 5.0), 17.0, Color(0.92, 0.76, 0.36, 0.26), false, 2.0)
+
+func draw_npc_role_prop(npc_id: String, position: Vector2, scale: float) -> void:
+	var dark := Color(0.10, 0.07, 0.045, 0.88)
+	var brass := Color(0.78, 0.58, 0.28, 0.82)
+	if npc_id == "aldric" or npc_id == "gareth":
+		draw_line(position + Vector2(8.0, -2.0) * scale, position + Vector2(16.0, -10.0) * scale, dark, 2.0)
+		draw_rect(Rect2(position + Vector2(14.0, -13.0) * scale, Vector2(8.0, 4.0) * scale), Color(0.45, 0.43, 0.38, 0.92))
+	elif npc_id == "mara":
+		draw_rect(Rect2(position + Vector2(-5.0, 4.0) * scale, Vector2(10.0, 10.0) * scale), Color(0.86, 0.70, 0.44, 0.52))
+		draw_circle(position + Vector2(11.0, 1.0) * scale, 3.0 * scale, brass)
+	elif npc_id == "elowen":
+		draw_line(position + Vector2(10.0, 3.0) * scale, position + Vector2(18.0, -8.0) * scale, Color(0.38, 0.58, 0.28, 0.86), 2.0)
+		draw_circle(position + Vector2(17.0, -9.0) * scale, 3.0 * scale, Color(0.52, 0.76, 0.40, 0.82))
+	elif npc_id == "oren":
+		draw_rect(Rect2(position + Vector2(8.0, -6.0) * scale, Vector2(8.0, 11.0) * scale), Color(0.72, 0.67, 0.50, 0.72))
+		draw_line(position + Vector2(9.0, -2.0) * scale, position + Vector2(15.0, -2.0) * scale, dark, 1.0)
+	elif npc_id == "tomas":
+		draw_rect(Rect2(position + Vector2(8.0, -1.0) * scale, Vector2(10.0, 8.0) * scale), Color(0.72, 0.68, 0.52, 0.72))
+		draw_line(position + Vector2(13.0, -8.0) * scale, position + Vector2(18.0, -13.0) * scale, Color(0.80, 0.78, 0.66, 0.82), 1.4)
+	elif npc_id == "bran":
+		draw_line(position + Vector2(11.0, -10.0) * scale, position + Vector2(11.0, 14.0) * scale, dark, 2.0)
+		for tine in [-4.0, 0.0, 4.0]:
+			draw_line(position + Vector2(11.0, -10.0) * scale, position + Vector2(11.0 + tine, -16.0) * scale, dark, 1.5)
+	elif npc_id == "lysa":
+		draw_line(position + Vector2(11.0, -12.0) * scale, position + Vector2(11.0, 16.0) * scale, Color(0.28, 0.20, 0.10, 0.94), 2.0)
+		draw_line(position + Vector2(11.0, -12.0) * scale, position + Vector2(17.0, -6.0) * scale, Color(0.28, 0.20, 0.10, 0.94), 1.6)
 
 func draw_label(position: Vector2, text: String, selected: bool, font_size: int = 14) -> void:
 	var font := get_theme_default_font()
@@ -326,6 +425,67 @@ func draw_low_fog(viewport: Vector2) -> void:
 		var x := -viewport.x * 0.20 + drift
 		draw_rect(Rect2(Vector2(x, y), Vector2(viewport.x * 1.35, viewport.y * 0.055)), Color(0.58, 0.64, 0.62, 0.045))
 
+func draw_map_mode_overlay(viewport: Vector2) -> void:
+	if map_mode == "riesgo":
+		for building_id: String in buildings.keys():
+			var status := String(building_statuses.get(building_id, "activo"))
+			if status == "activo":
+				continue
+			var layout: Dictionary = buildings[building_id]
+			var center := to_screen(layout["position"], viewport)
+			var radius := viewport.y * 0.075
+			var color := Color(0.80, 0.58, 0.24, 0.16)
+			if status == "bloqueado":
+				color = Color(0.65, 0.18, 0.15, 0.20)
+			draw_circle(center, radius, color)
+	elif map_mode == "recursos":
+		for point in [
+			{"position": Vector2(0.26, 0.72), "text": "+ comida"},
+			{"position": Vector2(0.23, 0.47), "text": "+ hierro"},
+			{"position": Vector2(0.43, 0.67), "text": "+ medicina"},
+			{"position": Vector2(0.64, 0.42), "text": "+ moral"}
+		]:
+			var label_position := to_screen(point["position"], viewport)
+			draw_resource_badge(label_position, String(point["text"]))
+
+func draw_resource_badge(position: Vector2, text: String) -> void:
+	var font := get_theme_default_font()
+	var font_size := 13
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1.0, font_size)
+	var rect := Rect2(position - Vector2(text_size.x * 0.5 + 8.0, 13.0), Vector2(text_size.x + 16.0, 24.0))
+	draw_rect(rect, Color(0.06, 0.045, 0.025, 0.74))
+	draw_rect(rect, Color(0.82, 0.62, 0.30, 0.42), false, 1.0)
+	draw_string(font, Vector2(position.x - text_size.x * 0.5, position.y + 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, Color(0.92, 0.83, 0.58, 1.0))
+
+func draw_hover_tooltip(viewport: Vector2) -> void:
+	var title := ""
+	var subtitle := ""
+	var position := Vector2.ZERO
+	if hovered_npc_id != "":
+		title = String(npc_names.get(hovered_npc_id, hovered_npc_id))
+		subtitle = "Habitante"
+		position = get_npc_position(hovered_npc_id, viewport) + Vector2(20.0, -34.0)
+	elif hovered_building_id != "":
+		var layout: Dictionary = buildings[hovered_building_id]
+		title = String(layout.get("label", hovered_building_id))
+		subtitle = String(building_statuses.get(hovered_building_id, "activo")).capitalize()
+		position = to_screen(layout["position"], viewport) + Vector2(24.0, -44.0)
+	else:
+		return
+	var font := get_theme_default_font()
+	var title_size := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15)
+	var subtitle_size := font.get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12)
+	var width := maxf(title_size.x, subtitle_size.x) + 22.0
+	var rect := Rect2(position, Vector2(width, 48.0))
+	if rect.end.x > viewport.x - 16.0:
+		rect.position.x = viewport.x - rect.size.x - 16.0
+	if rect.position.y < 16.0:
+		rect.position.y = 16.0
+	draw_rect(rect, Color(0.020, 0.024, 0.023, 0.92))
+	draw_rect(rect, Color(0.76, 0.62, 0.34, 0.70), false, 1.0)
+	draw_string(font, rect.position + Vector2(11.0, 20.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15, Color(0.95, 0.86, 0.62, 1.0))
+	draw_string(font, rect.position + Vector2(11.0, 38.0), subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12, Color(0.70, 0.64, 0.49, 1.0))
+
 func get_npc_position(npc_id: String, viewport: Vector2) -> Vector2:
 	var routine: Array = npc_routines.get(npc_id, [])
 	if routine.is_empty():
@@ -343,8 +503,17 @@ func get_npc_position(npc_id: String, viewport: Vector2) -> Vector2:
 	return from_position.lerp(to_position, local_t)
 
 func get_npc_offset(npc_id: String) -> Vector2:
-	var index := npc_routines.keys().find(npc_id)
-	return Vector2(float((index % 3) - 1) * 16.0, float(index / 3) * 12.0)
+	var offsets := {
+		"aldric": Vector2(-42.0, -8.0),
+		"gareth": Vector2(-24.0, -34.0),
+		"mara": Vector2(52.0, -20.0),
+		"elowen": Vector2(-32.0, 34.0),
+		"bran": Vector2(-54.0, 18.0),
+		"lysa": Vector2(58.0, 26.0),
+		"oren": Vector2(0.0, -6.0),
+		"tomas": Vector2(28.0, 36.0)
+	}
+	return offsets.get(npc_id, Vector2.ZERO)
 
 func get_npc_at_position(position: Vector2) -> String:
 	for npc_id: String in npc_routines.keys():

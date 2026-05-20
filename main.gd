@@ -27,12 +27,22 @@ var event_feed_container: VBoxContainer
 var event_feed_empty_label: RichTextLabel
 var village_overview_panel: PanelContainer
 var village_overview_content: VBoxContainer
+var map_mode_panel: PanelContainer
+var map_mode_buttons: Dictionary = {}
+var map_popup_panel: PanelContainer
+var map_popup_title: Label
+var map_popup_body: RichTextLabel
+var map_popup_dragging := false
+var map_popup_drag_offset := Vector2.ZERO
 var resource_strip: HBoxContainer
 var resource_value_labels: Dictionary = {}
 var dynamic_context_buttons: Array[Button] = []
+var active_context_id := "map"
 
 @onready var title_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TitleLabel
 @onready var top_stats_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TopStatsLabel
+@onready var top_bar_panel: PanelContainer = $RootMargin/RootLayout/TopBar
+@onready var top_bar_content: BoxContainer = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent
 @onready var map_content: Control = $RootMargin/RootLayout/GameArea/MapPanel/MapContent
 @onready var village_map_view: VillageMapView = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/VillageMapView
 @onready var map_title_label: Label = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/MapTitleLabel
@@ -47,6 +57,7 @@ var dynamic_context_buttons: Array[Button] = []
 @onready var npc_info_label: RichTextLabel = $RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent/NPCInfoLabel
 @onready var close_context_button: Button = $RootMargin/RootLayout/GameArea/ContextPanel/ContextMargin/ContextContent/ContextHeader/CloseContextButton
 
+@onready var bottom_bar_panel: PanelContainer = $RootMargin/RootLayout/BottomBar
 @onready var people_button: Button = $RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar/PeopleButton
 @onready var chronicle_button: Button = $RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar/ChronicleButton
 @onready var management_button: Button = $RootMargin/RootLayout/BottomBar/BottomBarMargin/ActionBar/ManagementButton
@@ -66,10 +77,13 @@ func _ready() -> void:
 	diary_system.setup_initial_entry()
 	populate_npc_list()
 	village_map_view.set_npcs(village_state.npcs)
+	apply_map_first_hud_layout()
 	apply_visual_map_style()
 	apply_translucent_context_style()
 	create_resource_strip()
 	create_village_overview_panel()
+	create_map_mode_panel()
+	create_map_context_popup()
 	create_event_feed_overlay()
 	connect_signals()
 	update_all_ui()
@@ -86,6 +100,38 @@ func connect_signals() -> void:
 	village_map_view.building_selected.connect(show_building_panel)
 	village_map_view.npc_selected.connect(show_npc_from_map)
 
+func _input(event: InputEvent) -> void:
+	if not map_popup_dragging:
+		return
+	if event is InputEventMouseMotion:
+		map_popup_panel.position = clamp_map_popup_position(map_content.get_local_mouse_position() - map_popup_drag_offset)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		map_popup_dragging = false
+
+func apply_map_first_hud_layout() -> void:
+	var root_layout: VBoxContainer = $RootMargin/RootLayout
+	var game_area: Control = $RootMargin/RootLayout/GameArea
+	root_layout.move_child(game_area, 0)
+	top_bar_panel.reparent(map_content)
+	bottom_bar_panel.reparent(map_content)
+	top_bar_panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top_bar_panel.offset_left = 24.0
+	top_bar_panel.offset_top = 18.0
+	top_bar_panel.offset_right = -24.0
+	top_bar_panel.offset_bottom = 82.0
+	top_bar_panel.mouse_filter = Control.MOUSE_FILTER_PASS
+	bottom_bar_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bottom_bar_panel.offset_left = 24.0
+	bottom_bar_panel.offset_top = -78.0
+	bottom_bar_panel.offset_right = -24.0
+	bottom_bar_panel.offset_bottom = -18.0
+	bottom_bar_panel.mouse_filter = Control.MOUSE_FILTER_PASS
+	title_label.visible = false
+	map_title_label.offset_top = 104.0
+	map_title_label.offset_bottom = 142.0
+	map_hint_label.offset_top = 144.0
+	map_hint_label.offset_bottom = 196.0
+
 func apply_visual_map_style() -> void:
 	var map_panel: PanelContainer = $RootMargin/RootLayout/GameArea/MapPanel
 	var map_style := StyleBoxFlat.new()
@@ -101,20 +147,22 @@ func apply_visual_map_style() -> void:
 	map_style.corner_radius_bottom_right = 0
 	map_panel.add_theme_stylebox_override("panel", map_style)
 
-	var top_bar: PanelContainer = $RootMargin/RootLayout/TopBar
-	top_bar.custom_minimum_size = Vector2(0, 94)
-	top_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.020, 0.023, 0.024, 0.96), Color(0.66, 0.54, 0.32, 0.46), 0))
+	top_bar_panel.custom_minimum_size = Vector2(0, 0)
+	top_bar_panel.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.020, 0.023, 0.024, 0.0), Color(0.66, 0.54, 0.32, 0.0), 0))
 	title_label.add_theme_font_size_override("font_size", 25)
 	title_label.add_theme_color_override("font_color", Color(0.93, 0.86, 0.66))
 	title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.72))
 
-	var bottom_bar: PanelContainer = $RootMargin/RootLayout/BottomBar
-	bottom_bar.custom_minimum_size = Vector2(0, 76)
-	bottom_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.022, 0.026, 0.027, 0.97), Color(0.66, 0.54, 0.32, 0.48), 0))
+	bottom_bar_panel.custom_minimum_size = Vector2(0, 0)
+	bottom_bar_panel.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.022, 0.026, 0.027, 0.0), Color(0.66, 0.54, 0.32, 0.0), 0))
 
 	for button: Button in [people_button, chronicle_button, management_button, quests_button, build_button]:
 		button.add_theme_font_size_override("font_size", 17)
 		button.custom_minimum_size = Vector2(144, 46)
+		button.add_theme_stylebox_override("normal", make_button_style(Color(0.045, 0.050, 0.047, 0.95), Color(0.50, 0.43, 0.28, 0.52), 7))
+		button.add_theme_stylebox_override("hover", make_button_style(Color(0.075, 0.068, 0.052, 1.0), Color(0.78, 0.62, 0.34, 0.82), 7))
+		button.add_theme_stylebox_override("pressed", make_button_style(Color(0.10, 0.075, 0.045, 1.0), Color(0.90, 0.68, 0.34, 0.95), 7))
+		button.add_theme_color_override("font_color", Color(0.84, 0.79, 0.66))
 
 	advance_day_button.custom_minimum_size = Vector2(184, 46)
 	advance_day_button.add_theme_font_size_override("font_size", 18)
@@ -213,7 +261,6 @@ func create_resource_strip() -> void:
 	if resource_strip != null:
 		return
 	top_stats_label.visible = false
-	var top_bar_content: BoxContainer = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent
 	resource_strip = HBoxContainer.new()
 	resource_strip.name = "ResourceIconStrip"
 	resource_strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -282,18 +329,145 @@ func update_resource_strip() -> void:
 			var label: Label = resource_value_labels[resource_name]
 			label.text = str(village_state.get_resource(resource_name))
 
+func create_map_mode_panel() -> void:
+	map_mode_panel = PanelContainer.new()
+	map_mode_panel.name = "MapModePanel"
+	map_mode_panel.anchor_left = 0.0
+	map_mode_panel.anchor_top = 0.0
+	map_mode_panel.anchor_right = 0.0
+	map_mode_panel.anchor_bottom = 0.0
+	map_mode_panel.offset_left = 24.0
+	map_mode_panel.offset_top = 24.0
+	map_mode_panel.offset_right = 310.0
+	map_mode_panel.offset_bottom = 72.0
+	map_mode_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.020, 0.58), Color(0.64, 0.52, 0.30, 0.28), 7))
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	map_mode_panel.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	margin.add_child(row)
+	row.add_child(make_map_mode_button("normal", "Mapa"))
+	row.add_child(make_map_mode_button("recursos", "Recursos"))
+	row.add_child(make_map_mode_button("riesgo", "Riesgo"))
+	map_content.add_child(map_mode_panel)
+	set_map_mode("normal")
+
+func make_map_mode_button(mode: String, label_text: String) -> Button:
+	var button := Button.new()
+	button.text = label_text
+	button.custom_minimum_size = Vector2(82, 32)
+	button.add_theme_font_size_override("font_size", 13)
+	button.pressed.connect(func(): set_map_mode(mode))
+	map_mode_buttons[mode] = button
+	return button
+
+func set_map_mode(mode: String) -> void:
+	if map_popup_panel != null:
+		map_popup_panel.visible = false
+	village_map_view.set_map_mode(mode)
+	for mode_id: String in map_mode_buttons.keys():
+		var button: Button = map_mode_buttons[mode_id]
+		if mode_id == mode:
+			button.add_theme_stylebox_override("normal", make_button_style(Color(0.12, 0.08, 0.04, 0.96), Color(0.92, 0.68, 0.34, 0.90), 6))
+			button.add_theme_color_override("font_color", Color(0.98, 0.88, 0.62))
+		else:
+			button.add_theme_stylebox_override("normal", make_button_style(Color(0.035, 0.040, 0.037, 0.90), Color(0.50, 0.43, 0.28, 0.42), 6))
+			button.add_theme_color_override("font_color", Color(0.80, 0.74, 0.62))
+
+func create_map_context_popup() -> void:
+	map_popup_panel = PanelContainer.new()
+	map_popup_panel.name = "MapContextPopup"
+	map_popup_panel.visible = false
+	map_popup_panel.custom_minimum_size = Vector2(310, 0)
+	map_popup_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.021, 0.94), Color(0.80, 0.64, 0.34, 0.55), 8))
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 13)
+	margin.add_theme_constant_override("margin_top", 11)
+	margin.add_theme_constant_override("margin_right", 13)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	map_popup_panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 7)
+	margin.add_child(content)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	header.mouse_filter = Control.MOUSE_FILTER_STOP
+	header.mouse_default_cursor_shape = Control.CURSOR_MOVE
+	header.tooltip_text = "Arrastrar tarjeta"
+	header.gui_input.connect(_on_map_popup_header_input)
+	content.add_child(header)
+	map_popup_title = Label.new()
+	map_popup_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	map_popup_title.add_theme_font_size_override("font_size", 20)
+	map_popup_title.add_theme_color_override("font_color", Color(0.96, 0.86, 0.60))
+	header.add_child(map_popup_title)
+	var close_button := Button.new()
+	close_button.text = "×"
+	close_button.custom_minimum_size = Vector2(34, 30)
+	close_button.pressed.connect(func(): map_popup_panel.visible = false)
+	header.add_child(close_button)
+	map_popup_body = RichTextLabel.new()
+	map_popup_body.bbcode_enabled = true
+	map_popup_body.fit_content = true
+	map_popup_body.scroll_active = false
+	map_popup_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	map_popup_body.custom_minimum_size = Vector2(280, 0)
+	content.add_child(map_popup_body)
+	map_content.add_child(map_popup_panel)
+
+func _on_map_popup_header_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		map_popup_dragging = event.pressed
+		if event.pressed:
+			map_popup_drag_offset = map_content.get_local_mouse_position() - map_popup_panel.position
+			map_popup_panel.move_to_front()
+
+func show_map_popup(title: String, body: String, screen_position: Vector2) -> void:
+	context_panel.visible = false
+	map_popup_title.text = title
+	map_popup_body.text = body
+	map_popup_panel.visible = true
+	map_popup_panel.position = get_clamped_map_popup_position(screen_position)
+	map_popup_panel.move_to_front()
+
+func get_clamped_map_popup_position(screen_position: Vector2) -> Vector2:
+	var popup_size := Vector2(330.0, 230.0)
+	var position := screen_position + Vector2(26.0, -18.0)
+	if position.x + popup_size.x > map_content.size.x - 18.0:
+		position.x = screen_position.x - popup_size.x - 26.0
+	if position.y + popup_size.y > map_content.size.y - 92.0:
+		position.y = map_content.size.y - popup_size.y - 92.0
+	position.x = clamp(position.x, 18.0, maxf(18.0, map_content.size.x - popup_size.x - 18.0))
+	position.y = clamp(position.y, 88.0, maxf(88.0, map_content.size.y - popup_size.y - 92.0))
+	return position
+
+func clamp_map_popup_position(position: Vector2) -> Vector2:
+	var popup_size := map_popup_panel.size
+	if popup_size.x <= 0.0 or popup_size.y <= 0.0:
+		popup_size = Vector2(330.0, 230.0)
+	var max_x := maxf(18.0, map_content.size.x - popup_size.x - 18.0)
+	var max_y := maxf(88.0, map_content.size.y - popup_size.y - 86.0)
+	return Vector2(
+		clamp(position.x, 18.0, max_x),
+		clamp(position.y, 88.0, max_y)
+	)
+
 func create_village_overview_panel() -> void:
 	village_overview_panel = PanelContainer.new()
 	village_overview_panel.name = "VillageOverviewPanel"
-	village_overview_panel.custom_minimum_size = Vector2(344, 0)
+	village_overview_panel.custom_minimum_size = Vector2(282, 0)
 	village_overview_panel.anchor_left = 1.0
 	village_overview_panel.anchor_top = 0.0
 	village_overview_panel.anchor_right = 1.0
 	village_overview_panel.anchor_bottom = 0.0
-	village_overview_panel.offset_left = -372.0
+	village_overview_panel.offset_left = -306.0
 	village_overview_panel.offset_top = 132.0
 	village_overview_panel.offset_right = -24.0
-	village_overview_panel.offset_bottom = 438.0
+	village_overview_panel.offset_bottom = 296.0
 	village_overview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	village_overview_panel.add_theme_stylebox_override("panel", make_panel_style(Color(0.018, 0.022, 0.022, 0.78), Color(0.70, 0.58, 0.34, 0.32), 8))
 	var margin := MarginContainer.new()
@@ -315,18 +489,17 @@ func update_village_overview_panel() -> void:
 	add_overview_title()
 	add_overview_mood_row()
 	add_overview_warning_row()
-	add_overview_building_watch()
 	village_map_view.set_building_statuses(get_building_visual_statuses())
 
 func add_overview_title() -> void:
 	var title := Label.new()
-	title.text = "Consejo de aldea"
-	title.add_theme_font_size_override("font_size", 21)
+	title.text = "Consejo"
+	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(0.96, 0.86, 0.60))
 	village_overview_content.add_child(title)
 	var subtitle := Label.new()
 	subtitle.text = "Prioridad: %s" % MonthlyStrategyDatabase.get_strategy_name(village_state.current_strategy_id)
-	subtitle.add_theme_font_size_override("font_size", 14)
+	subtitle.add_theme_font_size_override("font_size", 12)
 	subtitle.add_theme_color_override("font_color", Color(0.65, 0.58, 0.44))
 	village_overview_content.add_child(subtitle)
 
@@ -343,9 +516,9 @@ func make_metric_card(label_text: String, value: int, inverted: bool) -> PanelCo
 	card.add_theme_stylebox_override("panel", make_panel_style(Color(0.035, 0.041, 0.038, 0.82), Color(0.50, 0.42, 0.26, 0.30), 7))
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 7)
+	margin.add_theme_constant_override("margin_top", 5)
 	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 7)
+	margin.add_theme_constant_override("margin_bottom", 5)
 	card.add_child(margin)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 3)
@@ -357,7 +530,7 @@ func make_metric_card(label_text: String, value: int, inverted: bool) -> PanelCo
 	content.add_child(name_label)
 	var value_label := Label.new()
 	value_label.text = "%d/100" % value
-	value_label.add_theme_font_size_override("font_size", 19)
+	value_label.add_theme_font_size_override("font_size", 16)
 	value_label.add_theme_color_override("font_color", Color.html(get_state_color(value, inverted)))
 	content.add_child(value_label)
 	return card
@@ -506,6 +679,8 @@ func _on_npc_selected(index: int) -> void:
 
 func _on_close_context_pressed() -> void:
 	context_panel.visible = false
+	active_context_id = "map"
+	update_action_bar_selection()
 
 func _on_advance_day_pressed() -> void:
 	if village_state.has_pending_decision():
@@ -663,8 +838,18 @@ func reset_context_text_layout() -> void:
 	context_text_label.fit_content = true
 	context_text_label.custom_minimum_size = Vector2(320, 118)
 	context_text_label.size_flags_vertical = Control.SIZE_FILL
+	context_text_label.call_deferred("scroll_to_line", 0)
+
+func apply_scrollable_context_text(min_height: float = 260.0) -> void:
+	context_text_label.scroll_active = true
+	context_text_label.fit_content = false
+	context_text_label.custom_minimum_size = Vector2(380, min_height)
+	context_text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	context_text_label.call_deferred("scroll_to_line", 0)
 
 func show_context(title: String, body: String, show_npcs: bool = false) -> void:
+	if map_popup_panel != null:
+		map_popup_panel.visible = false
 	reset_context_text_layout()
 	context_panel.visible = true
 	context_title_label.text = title
@@ -678,52 +863,98 @@ func show_context(title: String, body: String, show_npcs: bool = false) -> void:
 		npc_list.ensure_current_is_visible()
 		update_npc_panel()
 
-func show_npc_from_map(npc_id: String) -> void:
+func show_npc_from_map(npc_id: String, screen_position: Vector2 = Vector2(-1.0, -1.0)) -> void:
 	if not village_state.npcs.has(npc_id):
 		return
+	if screen_position.x < 0.0:
+		active_context_id = "people"
+		update_action_bar_selection()
 	selected_npc_id = npc_id
 	var npc_index := village_state.npc_order.find(npc_id)
 	if npc_index >= 0:
 		npc_list.select(npc_index)
 	village_map_view.select_npc(npc_id)
-	show_context("Habitantes", "", true)
+	if screen_position.x >= 0.0:
+		show_map_popup(String(village_state.npcs[npc_id]["name"]), get_npc_map_popup_text(npc_id), screen_position)
+	else:
+		show_context("Habitantes", "", true)
 
 func add_context_button(text: String, callback: Callable, disabled: bool = false) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.disabled = disabled
 	button.custom_minimum_size = Vector2(0, 38)
+	button.add_theme_stylebox_override("normal", make_button_style(Color(0.040, 0.044, 0.040, 0.96), Color(0.52, 0.44, 0.28, 0.52), 7))
+	button.add_theme_stylebox_override("hover", make_button_style(Color(0.075, 0.063, 0.042, 1.0), Color(0.78, 0.61, 0.32, 0.86), 7))
+	button.add_theme_stylebox_override("pressed", make_button_style(Color(0.11, 0.075, 0.040, 1.0), Color(0.90, 0.68, 0.34, 1.0), 7))
+	button.add_theme_color_override("font_color", Color(0.90, 0.83, 0.64))
 	button.pressed.connect(callback)
 	context_content.add_child(button)
 	dynamic_context_buttons.append(button)
 	return button
 
+func format_context_header(title: String, subtitle: String) -> String:
+	return "[center][font_size=23][color=#f0dfb2][b]%s[/b][/color][/font_size]\n[color=#b59d70][i]%s[/i][/color][/center]\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n" % [title, subtitle]
+
+func format_context_section(title: String) -> String:
+	return "\n[color=#d8c28a][b]%s[/b][/color]\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n" % title
+
+func format_context_notice(text: String) -> String:
+	return "[color=#cdbf9c]%s[/color]\n" % text
+
+func format_status_dot(status: String) -> String:
+	if status == "bloqueado":
+		return "[color=#a33b35]■[/color]"
+	if status == "riesgo":
+		return "[color=#d09347]▲[/color]"
+	return "[color=#8aac73]●[/color]"
+
+func update_action_bar_selection() -> void:
+	var styles := {
+		"people": people_button,
+		"chronicle": chronicle_button,
+		"management": management_button,
+		"quests": quests_button,
+		"build": build_button
+	}
+	for context_id: String in styles.keys():
+		var button: Button = styles[context_id]
+		if context_id == active_context_id:
+			button.add_theme_stylebox_override("normal", make_button_style(Color(0.115, 0.080, 0.045, 1.0), Color(0.92, 0.69, 0.34, 0.95), 7))
+			button.add_theme_color_override("font_color", Color(0.98, 0.88, 0.62))
+		else:
+			button.add_theme_stylebox_override("normal", make_button_style(Color(0.045, 0.050, 0.047, 0.95), Color(0.50, 0.43, 0.28, 0.52), 7))
+			button.add_theme_color_override("font_color", Color(0.84, 0.79, 0.66))
+
 func show_people_panel() -> void:
+	active_context_id = "people"
+	update_action_bar_selection()
 	show_context(
 		"Habitantes",
-		"[b]Protagonistas[/b]\nSelecciona un nombre para ver ficha, relaciones y futuras tramas.",
+		format_context_header("Habitantes de Valdeniebla", "Rostros, oficio y tensiones personales") +
+		format_context_notice("Selecciona un nombre para abrir su ficha. En el mapa cada protagonista usa una silueta ligada a su oficio."),
 		true
 	)
 
 func show_chronicle_panel() -> void:
+	active_context_id = "chronicle"
+	update_action_bar_selection()
+	if map_popup_panel != null:
+		map_popup_panel.visible = false
 	clear_dynamic_context_buttons()
 	context_panel.visible = true
 	context_title_label.text = "Crónica"
 	context_text_label.visible = true
-	context_text_label.text = "\n\n".join(diary_system.diary_history)
-	context_text_label.scroll_active = true
-	context_text_label.fit_content = false
-	context_text_label.custom_minimum_size = Vector2(320, 620)
-	context_text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	context_text_label.text = get_chronicle_panel_text()
+	apply_scrollable_context_text()
 	npc_list.visible = false
 	npc_info_label.visible = false
 
 func show_management_panel() -> void:
+	active_context_id = "management"
+	update_action_bar_selection()
 	show_context("Gestión", get_management_panel_text(), false)
-	context_text_label.scroll_active = true
-	context_text_label.fit_content = false
-	context_text_label.custom_minimum_size = Vector2(380, 430)
-	context_text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	apply_scrollable_context_text()
 	if village_state.is_start_of_month():
 		for strategy_id: String in MonthlyStrategyDatabase.get_strategy_order():
 			var strategy_name := MonthlyStrategyDatabase.get_strategy_name(strategy_id)
@@ -741,18 +972,17 @@ func set_monthly_strategy(strategy_id: String) -> void:
 
 func get_management_panel_text() -> String:
 	var strategy := MonthlyStrategyDatabase.get_strategy(village_state.current_strategy_id)
-	var text := "[font_size=22][b]Registro del consejo[/b][/font_size]\n"
-	text += "[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n"
-	text += "[b]Calendario[/b]\nMes %d · Día %d/%d\n\n" % [village_state.month, village_state.day_of_month, village_state.DAYS_PER_MONTH]
-	text += "[b]Prioridad mensual[/b]\n[color=#f0dfb2]%s[/color]\n[i]%s[/i]\n" % [strategy.get("name", "Equilibrada"), strategy.get("description", "")]
+	var text := format_context_header("Registro del consejo", "Mes %d · Día %d/%d" % [village_state.month, village_state.day_of_month, village_state.DAYS_PER_MONTH])
+	text += format_context_section("Prioridad mensual")
+	text += "[color=#f0dfb2][font_size=18][b]%s[/b][/font_size][/color]\n[i]%s[/i]\n" % [strategy.get("name", "Equilibrada"), strategy.get("description", "")]
 	if village_state.is_start_of_month():
 		text += "\n[color=#d8c28a]Puedes cambiar la prioridad al inicio del mes.[/color]\n"
 	else:
 		text += "\n[color=#8d8062]La prioridad se podrá cambiar al comenzar el próximo mes.[/color]\n"
-	text += "\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n[b]Oficios activos[/b]\n"
+	text += format_context_section("Oficios activos")
 	for line: String in village_state.get_job_summary_lines():
 		text += "%s\n" % format_job_status_badge(line)
-	text += "\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n[b]Recursos[/b]\n"
+	text += format_context_section("Recursos")
 	for resource_name: String in ResourceDatabase.get_resource_order():
 		var label := String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name))
 		var icon_path := String(UiAssetDatabase.get_resource_icon_paths().get(resource_name, ""))
@@ -764,7 +994,7 @@ func get_management_panel_text() -> String:
 			text += "[img=18x18]%s[/img] %s: [color=%s]%d[/color]\n" % [icon_path, label, value_color, value]
 		else:
 			text += "%s: [color=%s]%d[/color]\n" % [label, value_color, value]
-	text += "\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n[b]Último balance[/b]\n"
+	text += format_context_section("Último balance")
 	if village_state.last_daily_resource_changes.is_empty():
 		text += "[color=#8d8062]Aún no hay balance diario.[/color]"
 	else:
@@ -810,8 +1040,13 @@ func colorize_job_status_line(line: String) -> String:
 func show_decision_panel() -> void:
 	if not village_state.has_pending_decision():
 		return
+	active_context_id = "decision"
+	update_action_bar_selection()
 	var event_data: Dictionary = village_state.pending_decision_event
-	show_context("Decisión", "[b]%s[/b]\n[i]%s[/i]\n\n%s\n\nElige una respuesta:" % [event_data.get("title", "Decisión"), event_data.get("location", "Aldea"), event_data.get("description", "")], false)
+	var body := format_context_header(String(event_data.get("title", "Decisión")), String(event_data.get("location", "Aldea")))
+	body += format_context_notice(String(event_data.get("description", "")))
+	body += "\n[color=#d8c28a][b]Elige una respuesta[/b][/color]\n"
+	show_context("Decisión", body, false)
 	for option_index in range(event_data.get("options", []).size()):
 		var option_data: Dictionary = event_data["options"][option_index]
 		var requirements: Dictionary = option_data.get("requirements", {})
@@ -840,41 +1075,100 @@ func resolve_decision_option(option_index: int) -> void:
 func format_requirements(requirements: Dictionary) -> String:
 	var chunks: Array[String] = []
 	for resource_name: String in requirements.keys():
-		chunks.append("%s %d" % [String(resource_name).capitalize(), int(requirements[resource_name])])
+		var icon_path := String(UiAssetDatabase.get_resource_icon_paths().get(resource_name, ""))
+		if icon_path != "":
+			chunks.append("[img=16x16]%s[/img] %d" % [icon_path, int(requirements[resource_name])])
+		else:
+			chunks.append("%s %d" % [String(resource_name).capitalize(), int(requirements[resource_name])])
 	return ", ".join(chunks)
 
 func show_quests_panel() -> void:
-	show_context(
-		"Quests",
-		"[b]Tramas futuras[/b]\n• Quest personal de Aldric y Gareth.\n• Primer misterio de la niebla.\n• Quests cruzadas entre protagonistas.\n• Eventos donde secundarios puedan ganar importancia.",
-		false
-	)
+	active_context_id = "quests"
+	update_action_bar_selection()
+	show_context("Tramas", get_quests_panel_text(), false)
+	apply_scrollable_context_text()
 
 func show_build_panel() -> void:
-	var text := "[b]Edificios registrados[/b]\n"
+	active_context_id = "build"
+	update_action_bar_selection()
+	var text := format_context_header("Construcción", "Estado material de la aldea")
+	text += format_context_section("Edificios registrados")
 	for building_id: String in BuildingDatabase.get_building_order():
 		var building: Dictionary = village_state.get_building(building_id)
-		text += "• %s · Nivel %d · %s\n" % [building.get("name", building_id), int(building.get("level", 1)), building.get("status", "Sin estado")]
-	text += "\n[b]Construcción real[/b]\nLas mejoras, costes y obras llegan en la siguiente capa. Esta PR solo crea la base de estado de edificios."
+		var visual_status := String(get_building_visual_statuses().get(building_id, "activo"))
+		text += "%s [b]%s[/b] · Nivel %d · [color=#cdbf9c]%s[/color]\n" % [format_status_dot(visual_status), building.get("name", building_id), int(building.get("level", 1)), building.get("status", "Sin estado")]
+	text += format_context_section("Obras futuras")
+	text += "Las mejoras, costes y obras llegan en la siguiente capa. Esta vista ya reserva lenguaje visual para estado, nivel y función."
 	show_context("Construcción", text, false)
+	apply_scrollable_context_text()
 
-func show_building_panel(building_id: String) -> void:
+func show_building_panel(building_id: String, screen_position: Vector2 = Vector2(-1.0, -1.0)) -> void:
 	if not village_state.has_building(building_id):
 		show_context("Edificio", "No hay datos registrados para este edificio.", false)
 		return
+	if screen_position.x < 0.0:
+		active_context_id = "build"
+		update_action_bar_selection()
 	village_map_view.select_building(building_id)
 	var building: Dictionary = village_state.get_building(building_id)
-	show_context(String(building.get("name", "Edificio")), get_building_panel_text(building), false)
+	if screen_position.x >= 0.0:
+		show_map_popup(String(building.get("name", "Edificio")), get_building_map_popup_text(building_id, building), screen_position)
+	else:
+		show_context(String(building.get("name", "Edificio")), get_building_panel_text(building), false)
+
+func get_npc_map_popup_text(npc_id: String) -> String:
+	var npc: Dictionary = village_state.npcs[npc_id]
+	var text := "[color=#cdbf9c]%d años · %s[/color]\n" % [int(npc["age"]), npc["profession"]]
+	text += "[color=#8d8062]%s[/color]\n\n" % npc["location"]
+	text += "[b]Estado[/b]\n"
+	text += format_state_line("Salud", int(npc["state"].get("salud", 0)), false)
+	text += format_state_line("Ánimo", int(npc["state"].get("ánimo", 0)), false)
+	text += format_state_line("Estrés", int(npc["state"].get("estrés", 0)), true)
+	text += "\n[color=#d8c28a]Clic en Habitantes para abrir ficha completa.[/color]"
+	return text
+
+func get_building_map_popup_text(building_id: String, building: Dictionary) -> String:
+	var visual_status := String(get_building_visual_statuses().get(building_id, "activo"))
+	var text := "%s [color=#cdbf9c]%s · Nivel %d · %d/100[/color]\n\n" % [
+		format_status_dot(visual_status),
+		building.get("status", "Sin estado"),
+		int(building.get("level", 1)),
+		int(building.get("condition", 100))
+	]
+	text += "[b]Función[/b]\n%s\n" % building.get("function", "Sin función registrada.")
+	var place_note := get_place_context_note(building_id)
+	if place_note != "":
+		text += "\n[b]Rumor / situación[/b]\n%s\n" % place_note
+	text += "\n[color=#d8c28a]Clic en Construir para abrir registro completo.[/color]"
+	return text
+
+func get_place_context_note(building_id: String) -> String:
+	if building_id == "forge":
+		return "Aldric y Gareth sostienen herramientas y defensa; la falta de hierro se notará aquí primero."
+	if building_id == "tavern":
+		return "Mara escucha más de lo que dice. La moral de la aldea suele cambiar en esta sala."
+	if building_id == "chapel":
+		return "Tomas conserva la crónica. Algunas entradas ya no encajan del todo."
+	if building_id == "well":
+		return "El pozo reúne conversaciones breves, rumores y primeros avisos de tensión."
+	if building_id == "communal_house":
+		return "Oren convierte quejas en prioridades mensuales, cuando logra que todos escuchen."
+	return ""
 
 func get_building_panel_text(building: Dictionary) -> String:
-	var text := "[b]Nivel[/b]\n%d\n\n" % int(building.get("level", 1))
-	text += "[b]Estado[/b]\n%s · %d/100\n\n" % [building.get("status", "Sin estado"), int(building.get("condition", 100))]
-	text += "[b]Habitantes asociados[/b]\n%s\n\n" % format_worker_names(building.get("workers", []))
-	text += "[b]Función[/b]\n%s\n\n" % building.get("function", "Sin función registrada.")
-	text += "[b]Producción[/b]\n%s\n\n" % format_string_list(building.get("production", []), "Sin producción directa.")
-	text += "[b]Costes[/b]\n%s\n\n" % format_string_list(building.get("costs", []), "Sin costes actuales.")
-	text += "[b]Riesgos[/b]\n%s\n\n" % format_string_list(building.get("risks", []), "Sin riesgos registrados.")
-	text += "[b]Mejora futura[/b]\n%s" % building.get("future_upgrade", "Sin mejora registrada.")
+	var text := "[font_size=18][color=#f0dfb2][b]Nivel %d[/b][/color][/font_size]  [color=#cdbf9c]%s · %d/100[/color]\n" % [int(building.get("level", 1)), building.get("status", "Sin estado"), int(building.get("condition", 100))]
+	text += format_context_section("Habitantes asociados")
+	text += "%s\n" % format_worker_names(building.get("workers", []))
+	text += format_context_section("Función")
+	text += "%s\n" % building.get("function", "Sin función registrada.")
+	text += format_context_section("Producción")
+	text += "%s\n" % format_string_list(building.get("production", []), "Sin producción directa.")
+	text += format_context_section("Costes")
+	text += "%s\n" % format_string_list(building.get("costs", []), "Sin costes actuales.")
+	text += format_context_section("Riesgos")
+	text += "%s\n" % format_string_list(building.get("risks", []), "Sin riesgos registrados.")
+	text += format_context_section("Mejora futura")
+	text += "%s" % building.get("future_upgrade", "Sin mejora registrada.")
 	return text
 
 func format_worker_names(worker_ids: Array) -> String:
@@ -895,6 +1189,35 @@ func format_string_list(items: Array, empty_text: String) -> String:
 	for item: String in items:
 		chunks.append("• %s" % item)
 	return "\n".join(chunks)
+
+func get_chronicle_panel_text() -> String:
+	var text := format_context_header("Crónica de Valdeniebla", "Registro de sucesos, balances y decisiones")
+	if diary_system.diary_history.is_empty():
+		return text + format_context_notice("Todavía no hay entradas registradas.")
+	var entries: Array = diary_system.diary_history.duplicate()
+	entries.reverse()
+	for i in range(entries.size()):
+		var entry_text := String(entries[i])
+		text += "[color=#d8c28a][b]Entrada %d[/b][/color]\n" % (entries.size() - i)
+		text += "[color=#cdbf9c]%s[/color]\n" % entry_text
+		if i < entries.size() - 1:
+			text += "[color=#51472f]────────────────────[/color]\n"
+	return text
+
+func get_quests_panel_text() -> String:
+	var text := format_context_header("Tablón de tramas", "Historias personales y misterio de la niebla")
+	text += "[color=#8d8062]Estas líneas preparan la presentación visual de quests antes de activar el sistema completo.[/color]\n"
+	text += format_context_section("Tramas personales")
+	text += format_quest_teaser("Aldric y Gareth", "Forja, orgullo y relevo generacional.", "Casa de la herrería")
+	text += format_quest_teaser("Mara", "Rumores de taberna y favores cruzados.", "Taberna")
+	text += format_quest_teaser("Elowen", "Curas, culpa y la primera enfermedad seria.", "Casa de curas")
+	text += format_context_section("Misterio de la niebla")
+	text += format_quest_teaser("Linde del bosque", "La niebla no se mueve como clima normal.", "Prados")
+	text += format_quest_teaser("Memoria rota", "Tomas empieza a detectar contradicciones en la crónica.", "Capilla")
+	return text
+
+func format_quest_teaser(title: String, description: String, place: String) -> String:
+	return "[color=#d09347]◆[/color] [b]%s[/b]\n[color=#cdbf9c]%s[/color]\n[color=#8d8062]%s[/color]\n\n" % [title, description, place]
 
 func format_npc_section(title: String) -> String:
 	return "\n[color=#d8c28a][b]%s[/b][/color]\n[color=#6f6040]━━━━━━━━━━━━━━━━━━━━[/color]\n" % title
