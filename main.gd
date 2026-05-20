@@ -33,6 +33,8 @@ var dynamic_context_buttons: Array[Button] = []
 @onready var top_stats_label: Label = $RootMargin/RootLayout/TopBar/TopBarMargin/TopBarContent/TopStatsLabel
 @onready var map_content: Control = $RootMargin/RootLayout/GameArea/MapPanel/MapContent
 @onready var village_map_view: VillageMapView = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/VillageMapView
+@onready var map_title_label: Label = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/MapTitleLabel
+@onready var map_hint_label: RichTextLabel = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/MapHintLabel
 @onready var map_status_label: RichTextLabel = $RootMargin/RootLayout/GameArea/MapPanel/MapContent/MapStatusLabel
 
 @onready var context_panel: PanelContainer = $RootMargin/RootLayout/GameArea/ContextPanel
@@ -84,8 +86,8 @@ func connect_signals() -> void:
 func apply_visual_map_style() -> void:
 	var map_panel: PanelContainer = $RootMargin/RootLayout/GameArea/MapPanel
 	var map_style := StyleBoxFlat.new()
-	map_style.bg_color = Color(0.055, 0.067, 0.055, 1.0)
-	map_style.border_color = Color(0.52, 0.47, 0.31, 0.36)
+	map_style.bg_color = Color(0.035, 0.045, 0.037, 1.0)
+	map_style.border_color = Color(0.50, 0.43, 0.27, 0.44)
 	map_style.border_width_left = 1
 	map_style.border_width_top = 1
 	map_style.border_width_right = 1
@@ -97,15 +99,33 @@ func apply_visual_map_style() -> void:
 	map_panel.add_theme_stylebox_override("panel", map_style)
 
 	var top_bar: PanelContainer = $RootMargin/RootLayout/TopBar
-	top_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.035, 0.04, 0.044, 0.90), Color(0.72, 0.62, 0.38, 0.32), 0))
+	top_bar.custom_minimum_size = Vector2(0, 94)
+	top_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.020, 0.023, 0.024, 0.96), Color(0.66, 0.54, 0.32, 0.46), 0))
+	title_label.add_theme_font_size_override("font_size", 25)
+	title_label.add_theme_color_override("font_color", Color(0.93, 0.86, 0.66))
+	title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.72))
 
 	var bottom_bar: PanelContainer = $RootMargin/RootLayout/BottomBar
-	bottom_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.04, 0.048, 0.052, 0.92), Color(0.72, 0.62, 0.38, 0.34), 0))
+	bottom_bar.custom_minimum_size = Vector2(0, 76)
+	bottom_bar.add_theme_stylebox_override("panel", make_hud_panel_style(Color(0.022, 0.026, 0.027, 0.97), Color(0.66, 0.54, 0.32, 0.48), 0))
 
 	for button: Button in [people_button, chronicle_button, management_button, quests_button, build_button]:
 		button.add_theme_font_size_override("font_size", 17)
+		button.custom_minimum_size = Vector2(144, 46)
 
+	advance_day_button.custom_minimum_size = Vector2(184, 46)
 	advance_day_button.add_theme_font_size_override("font_size", 18)
+	advance_day_button.add_theme_stylebox_override("normal", make_button_style(Color(0.18, 0.105, 0.045, 0.98), Color(0.88, 0.62, 0.30, 0.72), 7))
+	advance_day_button.add_theme_stylebox_override("hover", make_button_style(Color(0.24, 0.135, 0.055, 1.0), Color(1.0, 0.74, 0.38, 0.95), 7))
+	advance_day_button.add_theme_stylebox_override("pressed", make_button_style(Color(0.11, 0.065, 0.035, 1.0), Color(1.0, 0.80, 0.42, 1.0), 7))
+	advance_day_button.add_theme_color_override("font_color", Color(0.98, 0.88, 0.62))
+
+	map_title_label.add_theme_color_override("font_color", Color(0.94, 0.86, 0.66))
+	map_title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.72))
+	map_title_label.add_theme_constant_override("shadow_offset_x", 2)
+	map_title_label.add_theme_constant_override("shadow_offset_y", 2)
+	map_hint_label.add_theme_color_override("default_color", Color(0.86, 0.80, 0.66))
+	map_status_label.add_theme_stylebox_override("normal", make_hud_panel_style(Color(0.025, 0.031, 0.028, 0.62), Color(0.64, 0.52, 0.30, 0.24), 8))
 
 func make_hud_panel_style(bg_color: Color, border_color: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -125,12 +145,30 @@ func make_hud_panel_style(bg_color: Color, border_color: Color, radius: int) -> 
 	style.content_margin_bottom = 8
 	return style
 
-func apply_translucent_context_style() -> void:
-	context_panel.custom_minimum_size = Vector2(410, 0)
-	context_panel.offset_right = 436.0
+func make_button_style(bg_color: Color, border_color: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.031, 0.034, 0.92)
-	style.border_color = Color(0.72, 0.62, 0.38, 0.38)
+	style.bg_color = bg_color
+	style.border_color = border_color
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = radius
+	style.corner_radius_top_right = radius
+	style.corner_radius_bottom_left = radius
+	style.corner_radius_bottom_right = radius
+	style.content_margin_left = 14
+	style.content_margin_top = 9
+	style.content_margin_right = 14
+	style.content_margin_bottom = 9
+	return style
+
+func apply_translucent_context_style() -> void:
+	context_panel.custom_minimum_size = Vector2(448, 0)
+	context_panel.offset_right = 466.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.020, 0.025, 0.026, 0.95)
+	style.border_color = Color(0.75, 0.61, 0.34, 0.52)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
@@ -144,6 +182,11 @@ func apply_translucent_context_style() -> void:
 	style.content_margin_right = 2
 	style.content_margin_bottom = 2
 	context_panel.add_theme_stylebox_override("panel", style)
+	context_title_label.add_theme_color_override("font_color", Color(0.96, 0.87, 0.64))
+	close_context_button.text = "×"
+	close_context_button.tooltip_text = "Cerrar panel"
+	close_context_button.add_theme_stylebox_override("normal", make_button_style(Color(0.05, 0.055, 0.052, 0.95), Color(0.65, 0.56, 0.36, 0.55), 7))
+	close_context_button.add_theme_stylebox_override("hover", make_button_style(Color(0.10, 0.08, 0.06, 1.0), Color(0.90, 0.70, 0.40, 0.9), 7))
 
 func create_resource_strip() -> void:
 	if resource_strip != null:
@@ -175,25 +218,33 @@ func make_resource_chip(resource_name: String) -> PanelContainer:
 	row.add_theme_constant_override("separation", 4)
 	margin.add_child(row)
 	var icon := TextureRect.new()
-	icon.custom_minimum_size = Vector2(22, 22)
+	icon.custom_minimum_size = Vector2(25, 25)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var icon_path := String(UiAssetDatabase.get_resource_icon_paths().get(resource_name, ""))
 	if icon_path != "":
 		icon.texture = load(icon_path)
 	row.add_child(icon)
+	var text_stack := VBoxContainer.new()
+	text_stack.add_theme_constant_override("separation", -3)
+	row.add_child(text_stack)
+	var caption := Label.new()
+	caption.text = String(ResourceDatabase.get_resource_labels().get(resource_name, resource_name)).to_upper()
+	caption.add_theme_font_size_override("font_size", 10)
+	caption.add_theme_color_override("font_color", Color(0.58, 0.52, 0.40))
+	text_stack.add_child(caption)
 	var value_label := Label.new()
-	value_label.add_theme_font_size_override("font_size", 16)
-	value_label.add_theme_color_override("font_color", Color(0.88, 0.80, 0.64))
+	value_label.add_theme_font_size_override("font_size", 17)
+	value_label.add_theme_color_override("font_color", Color(0.93, 0.82, 0.58))
 	value_label.text = "0"
-	row.add_child(value_label)
+	text_stack.add_child(value_label)
 	resource_value_labels[resource_name] = value_label
 	return chip
 
 func make_resource_chip_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.095, 0.07, 0.82)
-	style.border_color = Color(0.65, 0.52, 0.30, 0.42)
+	style.bg_color = Color(0.10, 0.075, 0.050, 0.88)
+	style.border_color = Color(0.72, 0.55, 0.30, 0.52)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
@@ -424,8 +475,20 @@ func update_title() -> void:
 func update_map_status() -> void:
 	var average_mood := village_state.get_average_state("ánimo")
 	var average_stress := village_state.get_average_state("estrés")
-	map_status_label.text = "[center][b]Pulso de la aldea[/b]\nÁnimo medio: %d/100 · Estrés medio: %d/100 · Habitantes: %d\nPrioridad mensual: %s · Comida: %d · Seguridad: %d[/center]" % [
+	var mood_color := "#a33b35"
+	if average_mood >= 55:
+		mood_color = "#8aac73"
+	elif average_mood >= 35:
+		mood_color = "#d09347"
+	var stress_color := "#a33b35"
+	if average_stress <= 35:
+		stress_color = "#8aac73"
+	elif average_stress <= 60:
+		stress_color = "#d09347"
+	map_status_label.text = "[center][font_size=21][b]Pulso de la aldea[/b][/font_size]\n[color=%s]Ánimo %d/100[/color]   [color=%s]Estrés %d/100[/color]   Habitantes %d\n[color=#d8c28a]%s[/color]   Comida %d   Seguridad %d[/center]" % [
+		mood_color,
 		average_mood,
+		stress_color,
 		average_stress,
 		village_state.npc_order.size(),
 		MonthlyStrategyDatabase.get_strategy_name(village_state.current_strategy_id),
@@ -502,11 +565,16 @@ func show_chronicle_panel() -> void:
 
 func show_management_panel() -> void:
 	show_context("Gestión", get_management_panel_text(), false)
+	context_text_label.scroll_active = true
+	context_text_label.fit_content = false
+	context_text_label.custom_minimum_size = Vector2(380, 430)
+	context_text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if village_state.is_start_of_month():
 		for strategy_id: String in MonthlyStrategyDatabase.get_strategy_order():
 			var strategy_name := MonthlyStrategyDatabase.get_strategy_name(strategy_id)
 			var is_current := strategy_id == village_state.current_strategy_id
-			add_context_button(strategy_name if not is_current else "✓ %s" % strategy_name, func(id := strategy_id): set_monthly_strategy(id), is_current)
+			var button := add_context_button(strategy_name if not is_current else "✓ %s" % strategy_name, func(id := strategy_id): set_monthly_strategy(id), is_current)
+			button.custom_minimum_size = Vector2(0, 34)
 
 func set_monthly_strategy(strategy_id: String) -> void:
 	if not village_state.is_start_of_month():
@@ -662,7 +730,7 @@ func format_stats_block(stats: Dictionary) -> String:
 	var chunks: Array[String] = []
 	for key in stats.keys():
 		chunks.append("[color=#b7a77e]%s[/color] [color=#f0dfb2]%d[/color]" % [String(key).capitalize(), int(stats[key])])
-	return "  ·  ".join(chunks)
+	return "\n".join(chunks)
 
 func format_state_block(state: Dictionary) -> String:
 	var text := ""
